@@ -87,6 +87,7 @@ class Scene:
         print("Loading Test Cameras")
         self.test_camera = FourDGSdataset(scene_info.test_cameras, args)
         print("Loading Video Cameras")
+        
         self.video_camera = cameraList_from_camInfos(scene_info.video_cameras,-1,args)
         xyz_max = scene_info.point_cloud.points.max(axis=0)
         xyz_min = scene_info.point_cloud.points.min(axis=0)

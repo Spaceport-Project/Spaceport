@@ -359,13 +359,16 @@ def format_infos(dataset,split):
 
 
 def readHyperDataInfos(datadir,use_bg_points,eval):
-    train_cam_infos = Load_hyper_data(datadir,0.5,use_bg_points,split ="train")
-    test_cam_infos = Load_hyper_data(datadir,0.5,use_bg_points,split="test")
+    train_cam_infos = Load_hyper_data(datadir,0.25,use_bg_points,split ="train")
+    test_cam_infos = Load_hyper_data(datadir,0.25,use_bg_points,split="test")
+    # for i in range(len(test_cam_infos)):
+    #     print(f"test_cam_infos[{i}]: {test_cam_infos[i].image_name}")
 
     train_cam = format_hyper_data(train_cam_infos,"train")
     max_time = train_cam_infos.max_time
     video_cam_infos = copy.deepcopy(test_cam_infos)
     video_cam_infos.split="video"
+
 
     ply_path = os.path.join(datadir, "points.npy")
 
@@ -404,9 +407,11 @@ def format_render_poses(poses,data_infos):
         pose[:3,:] = p[:3,:]
         # matrix = np.linalg.inv(np.array(pose))
         R = pose[:3,:3]
-        R = - R
-        R[:,0] = -R[:,0]
-        T = -pose[:3,3].dot(R)
+        T = pose[:3,3]
+        # R = pose[:3,:3]
+        # R = - R
+        # R[:,0] = -R[:,0]
+        # T = -pose[:3,3].dot(R)
         FovX = focal2fov(data_infos.focal[0], image.shape[2])
         FovY = focal2fov(data_infos.focal[0], image.shape[1])
         cameras.append(CameraInfo(uid=idx, R=R, T=T, FovY=FovY, FovX=FovX, image=image,
@@ -470,7 +475,7 @@ def readdynerfInfo(datadir,use_bg_points,eval):
                            video_cameras=val_cam_infos,
                            nerf_normalization=nerf_normalization,
                            ply_path=ply_path,
-                           maxtime=300
+                           maxtime=test_dataset.num_frames
                            )
     return scene_info
 sceneLoadTypeCallbacks = {
