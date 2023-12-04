@@ -42,6 +42,8 @@ conda activate Gaussians4D
 pip install -r requirements.txt
 pip install -e submodules/depth-diff-gaussian-rasterization
 pip install -e submodules/simple-knn
+pip install "git+https://github.com/facebookresearch/pytorch3d.git@stable"
+
 ```
 In our environment, we use pytorch=1.13.1+cu116.
 ## Data Preparation
