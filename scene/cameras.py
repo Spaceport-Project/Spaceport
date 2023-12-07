@@ -12,6 +12,7 @@
 import torch
 from torch import nn
 from pytorch3d.renderer.cameras import FoVPerspectiveCameras
+from pytorch3d.renderer.cameras import FoVPerspectiveCameras
 import numpy as np
 from utils.graphics_utils import getWorld2View2, getWorld2View3, getProjectionMatrix
 
@@ -26,7 +27,7 @@ class Camera(nn.Module):
         self.colmap_id = colmap_id
         self.R = R
         self.T = T
-        self.FoVx = FoVx*1.8/FoVx
+        self.FoVx = FoVx*1.8/FoVx*1.8/FoVx
         self.FoVy = FoVy
         self.image_name = image_name
         self.time = time
