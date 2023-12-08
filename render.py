@@ -68,10 +68,10 @@ def render_set_all(model_path, name, iteration, views, gaussians, pipeline, back
                 count+=1
         count = 0
         print("writing rendering images.")
-        if len(render_list) != 0:
-            for image in tqdm(render_list):
-                torchvision.utils.save_image(image, os.path.join(render_path, '{0:05d}'.format(count) + ".png"))
-                count +=1
+        # if len(render_list) != 0:
+        #     for image in tqdm(render_list):
+        #         torchvision.utils.save_image(image, os.path.join(render_path, '{0:05d}'.format(count) + ".png"))
+        #         count +=1
         
         imageio.mimwrite(os.path.join(model_path, name, "ours_{}".format(iteration), f'video_rgb_{cnt}.mp4'), render_images, fps=30, quality=8)
         cnt+=1

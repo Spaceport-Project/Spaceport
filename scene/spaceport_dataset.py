@@ -105,17 +105,13 @@ def render_grid(c2w, up, focal):
     GRID_SIZE_X = 10
     GRID_SIZE_Z = 10
     min_x, max_x = -1.0 , 1.0
-    min_z, max_z = -2., 0.
+    min_z, max_z = -0.8, 0.5
     step_x = (max_x - min_x)/GRID_SIZE_X
     step_z = (max_z - min_z)/GRID_SIZE_Z
     for j, z in enumerate(np.arange(max_z, min_z , -step_z)):
         for i, x in enumerate(np.arange(max_x, min_x, -step_x)):
             c = np.array([x, 0, z])
-            # camera_to_world_clone = np.eye(4)
-            # camera_to_world_clone[0, 3] = x
-            # camera_to_world_clone[2, 3] = z
-            # camera_to_world_clone= camera_to_world_clone.tolist()
-            # print (camera_to_world_clone)
+           
 
             z_tmp = np.dot(c2w[:3, :4], np.array([0, 0, -focal, 1.0]))
             # z1 = normalize(c - z_tmp)
@@ -125,17 +121,7 @@ def render_grid(c2w, up, focal):
             
 
 
-    # for theta in np.linspace(0.0, 2.0 * np.pi * N_rots, N + 1)[:-1]:
-    #     c2w_tmp = c2w[:3, :4]
-    #     tmp_array = np.array([np.cos(theta), -np.sin(theta), -np.sin(theta * zrate), 1.0]) * rads,
-    #     c = np.dot(
-    #         c2w_tmp,
-    #         np.array([np.cos(theta), -np.sin(theta), -np.sin(theta * zrate), 1.0]) * rads,
-           
-    #     )
-    #     z_tmp = np.dot(c2w[:3, :4], np.array([0, 0, -focal, 1.0]))
-    #     z = normalize(c - z_tmp)
-    #     render_poses.append(viewmatrix(z, up, c))
+ 
     return render_poses
 
 
@@ -287,7 +273,7 @@ def load_cam_poses(path):
     
     return np.array(data_in["cam_poses"])
 
-class Neural3D_NDC_Dataset(Dataset):
+class SpaceportDataset(Dataset):
     def __init__(
         self,
         datadir,
@@ -304,14 +290,22 @@ class Neural3D_NDC_Dataset(Dataset):
         eval_step=1,
         eval_index=0,
         sphere_scale=1.0,
-    ):
+    ):  
+        # List images in cam00/images folder relative the datadir and get image size.
+        cam00_images = glob.glob(os.path.join(datadir, "cam00", "images", "*.jpg"))
+        cam00_images = sorted(cam00_images)
+        print(f"cam00_images: {len(cam00_images)} {datadir}")
+        img = Image.open(cam00_images[0])
         self.img_wh = (
-            int(1352 / downsample),
-            int(1014 / downsample),
-        )  # According to the neural 3D paper, the default resolution is 1024x768
+            int(img.size[0] / downsample),
+            int(img.size[1] / downsample)
+        ) 
+        print("Inside SpaceportDataset")
+        print(f"image size: {self.img_wh}")
         self.root_dir = datadir
         self.split = split
-        self.downsample = 2704 / self.img_wh[0]
+        #self.downsample = 1909 / self.img_wh[0]
+        self.downsample = downsample
         self.is_stack = is_stack
         self.N_vis = N_vis
         self.time_scale = time_scale
@@ -339,7 +333,7 @@ class Neural3D_NDC_Dataset(Dataset):
         Load meta data from the dataset.
         """
         # Read poses and video file paths.
-        poses_arr = np.load(os.path.join(self.root_dir, "poses_bounds.npy"))
+        poses_arr = np.load(os.path.join(self.root_dir, "poses_bounds_spaceport.npy"))
         poses = poses_arr[:, :-2].reshape([-1, 3, 5])  # (N_cams, 3, 5)
         self.near_fars = poses_arr[:, -2:]
         videos = glob.glob(os.path.join(self.root_dir, "cam*"))
@@ -362,12 +356,9 @@ class Neural3D_NDC_Dataset(Dataset):
         poses[..., 3] /= scale_factor
 
         # Sample N_views poses for validation - NeRF-like camera trajectory.
-        N_views = 120
+        N_views = 300
         # self.val_poses = get_spiral(poses, self.near_fars, N_views=N_views)
-        # print (self.val_poses)
-        # self.val_poses = load_cam_poses('/home/hamit/Softwares/4DGaussians/camera_poses.json')
         self.val_poses= get_grid(self.near_fars)
-        # print (self.val_poses)
 
         # self.val_poses = self.directions
         W, H = self.img_wh
@@ -391,7 +382,9 @@ class Neural3D_NDC_Dataset(Dataset):
         image_times = []
         N_cams = 0
         N_time = 0
-        countss = 300
+        cam00_images = glob.glob(os.path.join(self.root_dir, "cam00", "images", "*.jpg"))
+        countss = len(cam00_images)
+        #countss = 201
         for index, video_path in enumerate(videos):
             
             if index == self.eval_index:
@@ -444,7 +437,7 @@ class Neural3D_NDC_Dataset(Dataset):
                 # if self.downsample != 1.0:
                 #     img = video_frame.resize(self.img_wh, Image.LANCZOS)
                 # img.save(os.path.join(image_path,"%04d.png"%count))
-                this_count+=1
+                this_count+=1  
             N_time = len(images_path)
 
                 #     video_data_save[count] = img.permute(1,2,0)
