@@ -91,6 +91,7 @@ if __name__ == "__main__":
     args = get_combined_args(parser)
     print("Rendering " , args.model_path)
     if args.configs:
+        print("Loading configs from ", args.configs)
         import mmcv
         from utils.params_utils import merge_hparams
         config = mmcv.Config.fromfile(args.configs)

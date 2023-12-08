@@ -153,7 +153,7 @@ def process_video(video_data_save, video_path, img_wh, downsample, transform):
     print(f"Video {video_path} processed.")
     return None
 
-
+# This one is not used
 # define a function to process all videos
 def process_videos(videos, skip_index, img_wh, downsample, transform, num_workers=1):
     """
@@ -208,7 +208,7 @@ def get_spiral(c2ws_all, near_fars, rads_scale=1.0, N_views=120):
     return np.stack(render_poses)
 
 
-class Neural3D_NDC_Dataset(Dataset):
+class SpaceportDataset(Dataset):
     def __init__(
         self,
         datadir,
@@ -225,19 +225,22 @@ class Neural3D_NDC_Dataset(Dataset):
         eval_step=1,
         eval_index=0,
         sphere_scale=1.0,
-    ):
+    ):  
+        # List images in cam00/images folder relative the datadir and get image size.
+        cam00_images = glob.glob(os.path.join(datadir, "cam00", "images", "*.jpg"))
+        cam00_images = sorted(cam00_images)
+        print(f"cam00_images: {len(cam00_images)} {datadir}")
+        img = Image.open(cam00_images[0])
         self.img_wh = (
-            int(1352 / downsample),
-            int(1014 / downsample),
-            #int(1909 / downsample),
-            #int(1172 / downsample),
-            #int(954 / downsample),
-            #int(586 / downsample),
-        )  # According to the neural 3D paper, the default resolution is 1024x768
+            int(img.size[0] / downsample),
+            int(img.size[1] / downsample)
+        ) 
+        print("Inside SpaceportDataset")
+        print(f"image size: {self.img_wh}")
         self.root_dir = datadir
         self.split = split
         #self.downsample = 1909 / self.img_wh[0]
-        self.downsample = 2704 / self.img_wh[0]
+        self.downsample = downsample
         self.is_stack = is_stack
         self.N_vis = N_vis
         self.time_scale = time_scale
@@ -265,7 +268,7 @@ class Neural3D_NDC_Dataset(Dataset):
         Load meta data from the dataset.
         """
         # Read poses and video file paths.
-        poses_arr = np.load(os.path.join(self.root_dir, "poses_bounds.npy"))
+        poses_arr = np.load(os.path.join(self.root_dir, "poses_bounds_spaceport.npy"))
         poses = poses_arr[:, :-2].reshape([-1, 3, 5])  # (N_cams, 3, 5)
         self.near_fars = poses_arr[:, -2:]
         videos = glob.glob(os.path.join(self.root_dir, "cam*"))
@@ -288,7 +291,7 @@ class Neural3D_NDC_Dataset(Dataset):
         poses[..., 3] /= scale_factor
 
         # Sample N_views poses for validation - NeRF-like camera trajectory.
-        N_views = 120
+        N_views = 300
         self.val_poses = get_spiral(poses, self.near_fars, N_views=N_views)
         # self.val_poses = self.directions
         W, H = self.img_wh
@@ -312,7 +315,8 @@ class Neural3D_NDC_Dataset(Dataset):
         image_times = []
         N_cams = 0
         N_time = 0
-        countss = 300
+        cam00_images = glob.glob(os.path.join(self.root_dir, "cam00", "images", "*.jpg"))
+        countss = len(cam00_images)
         #countss = 201
         for index, video_path in enumerate(videos):
             

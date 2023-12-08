@@ -29,6 +29,13 @@ from utils.timer import Timer
 import lpips
 from utils.scene_utils import render_training_image
 from time import time
+
+import os
+print(os.environ.get('CUDA_HOME'))
+print(os.environ.get('LD_LIBRARY_PATH'))
+# calib_data = np.load("data/dynerf/cook_spinach_orig/poses_bounds.npy")
+#calib_data_LLFF = np.load("data/dynerf/cook_spinach_LLFF/poses_bounds.npy")
+
 to8b = lambda x : (255*np.clip(x.cpu().numpy(),0,1)).astype(np.uint8)
 
 try:
@@ -36,6 +43,9 @@ try:
     TENSORBOARD_FOUND = True
 except ImportError:
     TENSORBOARD_FOUND = False
+
+print("TENSORBOARD_FOUND: ", TENSORBOARD_FOUND)
+
 def scene_reconstruction(dataset, opt, hyper, pipe, testing_iterations, saving_iterations, 
                          checkpoint_iterations, checkpoint, debug_from,
                          gaussians, scene, stage, tb_writer, train_iter,timer):
@@ -89,7 +99,7 @@ def scene_reconstruction(dataset, opt, hyper, pipe, testing_iterations, saving_i
         # Pick a random Camera
         if not viewpoint_stack:
             viewpoint_stack = scene.getTrainCameras()
-            batch_size = 1
+            batch_size = int(opt.batch_size)
             viewpoint_stack_loader = DataLoader(viewpoint_stack, batch_size=batch_size,shuffle=True,num_workers=32,collate_fn=list)
             loader = iter(viewpoint_stack_loader)
         if opt.dataloader:
@@ -97,7 +107,7 @@ def scene_reconstruction(dataset, opt, hyper, pipe, testing_iterations, saving_i
                 viewpoint_cams = next(loader)
             except StopIteration:
                 print("reset dataloader")
-                batch_size = 1
+                batch_size = int(opt.batch_size)
                 loader = iter(viewpoint_stack_loader)
         else:
             idx = randint(0, len(viewpoint_stack)-1)
@@ -172,10 +182,10 @@ def scene_reconstruction(dataset, opt, hyper, pipe, testing_iterations, saving_i
                 print("\n[ITER {}] Saving Gaussians".format(iteration))
                 scene.save(iteration, stage)
             if dataset.render_process:
-                if (iteration < 1000 and iteration % 10 == 1) \
-                    or (iteration < 3000 and iteration % 50 == 1) \
-                        or (iteration < 10000 and iteration %  100 == 1) \
-                            or (iteration < 60000 and iteration % 100 ==1):
+                if (iteration < 1000 and iteration % 100 == 1) \
+                    or (iteration < 3000 and iteration % 500 == 1) \
+                        or (iteration < 10000 and iteration %  1000 == 1) \
+                            or (iteration < 60000 and iteration % 1000 ==1):
 
                     render_training_image(scene, gaussians, video_cams, render, pipe, background, stage, iteration-1,timer.get_elapsed_time())
                     # total_images.append(to8b(temp_image).transpose(1,2,0))
@@ -288,7 +298,6 @@ def training_report(tb_writer, iteration, Ll1, loss, l1_loss, elapsed, testing_i
 
         if tb_writer:
             tb_writer.add_histogram(f"{stage}/scene/opacity_histogram", scene.gaussians.get_opacity, iteration)
-            
             tb_writer.add_scalar(f'{stage}/total_points', scene.gaussians.get_xyz.shape[0], iteration)
             tb_writer.add_scalar(f'{stage}/deformation_rate', scene.gaussians._deformation_table.sum()/scene.gaussians.get_xyz.shape[0], iteration)
             tb_writer.add_histogram(f"{stage}/scene/motion_histogram", scene.gaussians._deformation_accum.mean(dim=-1)/100, iteration,max_bins=500)
@@ -315,22 +324,25 @@ if __name__ == "__main__":
     parser.add_argument('--debug_from', type=int, default=-1)
     parser.add_argument('--detect_anomaly', action='store_true', default=False)
     parser.add_argument("--test_iterations", nargs="+", type=int, default=[i*500 for i in range(0,120)])
-    parser.add_argument("--save_iterations", nargs="+", type=int, default=[2000, 3000, 7_000, 8000, 9000, 14000, 20000, 30_000,45000,60000])
+    #parser.add_argument("--save_iterations", nargs="+", type=int, default=[2000, 3000, 7_000, 8000, 9000, 10000, 14000, 17000, 20000, 23000, 26000, 28000, 30_000, 33000, 36000, 39000, 42000, 45000, 48000, 51000, 54000, 57000, 60000])
+    parser.add_argument("--save_iterations", nargs="+", type=int, default=[])
     parser.add_argument("--quiet", action="store_true")
     parser.add_argument("--checkpoint_iterations", nargs="+", type=int, default=[])
     parser.add_argument("--start_checkpoint", type=str, default = None)
     parser.add_argument("--expname", type=str, default = "")
     parser.add_argument("--configs", type=str, default = "")
+
     
     args = parser.parse_args(sys.argv[1:])
-    args.save_iterations.append(args.iterations)
     if args.configs:
         import mmcv
         from utils.params_utils import merge_hparams
         config = mmcv.Config.fromfile(args.configs)
         args = merge_hparams(args, config)
+        args.save_iterations = [i for i in range(1, args.iterations) if i % 2500 == 0]
+        args.save_iterations.append(args.iterations)
+        
     print("Optimizing " + args.model_path)
-
     # Initialize system state (RNG)
     safe_state(args.quiet)
 
