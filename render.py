@@ -44,7 +44,7 @@ def render_set_all(model_path, name, iteration, views, gaussians, pipeline, back
         for idx in tqdm(range(num_frames)):
         # for idx, view in enumerate(tqdm(range(300), desc="Rendering progress")):
             if idx == 0:time1 = time()
-            view.time = idx*0.75/num_frames
+            view.time = idx/num_frames
             # print(f"views[{idx}]: {view.image_name}, {view.R}")
             rendering = render(view, gaussians, pipeline, background)["render"]
             # rendering = render(view, gaussians, pipeline, background)["render"]
@@ -67,11 +67,11 @@ def render_set_all(model_path, name, iteration, views, gaussians, pipeline, back
                 torchvision.utils.save_image(image, os.path.join(gts_path, '{0:05d}'.format(count) + ".png"))
                 count+=1
         count = 0
-        print("writing rendering images.")
-        if len(render_list) != 0:
-            for image in tqdm(render_list):
-                torchvision.utils.save_image(image, os.path.join(render_path, '{0:05d}'.format(count) + ".png"))
-                count +=1
+        # print("writing rendering images.")
+        # if len(render_list) != 0:
+        #     for image in tqdm(render_list):
+        #         torchvision.utils.save_image(image, os.path.join(render_path, '{0:05d}'.format(count) + ".png"))
+        #         count +=1
         
         imageio.mimwrite(os.path.join(model_path, name, "ours_{}".format(iteration), f'video_rgb_{cnt}.mp4'), render_images, fps=30, quality=8)
         cnt+=1

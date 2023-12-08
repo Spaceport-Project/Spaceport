@@ -26,7 +26,7 @@ class Camera(nn.Module):
         self.colmap_id = colmap_id
         self.R = R
         self.T = T
-        self.FoVx = FoVx*1.8/FoVx
+        self.FoVx = FoVx*1.6/FoVx
         self.FoVy = FoVy
         self.image_name = image_name
         self.time = time
@@ -57,13 +57,19 @@ class Camera(nn.Module):
 
 
 
+        R = -R
+        R[:,0] =  -R[:,0]
+        T = -T.dot(R)
 
 
         R = torch.Tensor(R).unsqueeze(0)
         T = torch.Tensor(T).unsqueeze(0)
+
+        # R = torch.Tensor(R).unsqueeze(0)
+        # T = torch.Tensor(T).unsqueeze(0)
         
-        R = -R
-       
+        # # R = -R
+        # R[:,0] =  -R[:,0]
         persp_cam = FoVPerspectiveCameras(device="cuda", R = R, T = T, zfar = self.zfar, znear = self.znear, fov = self.FoVy, degrees=False, aspect_ratio=self.FoVx/self.FoVy)
         self.world_view_transform = persp_cam.get_world_to_view_transform().get_matrix()
      

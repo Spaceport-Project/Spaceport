@@ -18,6 +18,7 @@ from scene.colmap_loader import read_extrinsics_text, read_intrinsics_text, qvec
 from scene.hyper_loader import Load_hyper_data, format_hyper_data
 import torchvision.transforms as transforms
 import copy
+import plyfile
 from utils.graphics_utils import getWorld2View2, focal2fov, fov2focal
 import numpy as np
 import torch
@@ -359,16 +360,13 @@ def format_infos(dataset,split):
 
 
 def readHyperDataInfos(datadir,use_bg_points,eval):
-    train_cam_infos = Load_hyper_data(datadir,0.25,use_bg_points,split ="train")
-    test_cam_infos = Load_hyper_data(datadir,0.25,use_bg_points,split="test")
-    # for i in range(len(test_cam_infos)):
-    #     print(f"test_cam_infos[{i}]: {test_cam_infos[i].image_name}")
+    train_cam_infos = Load_hyper_data(datadir,0.5,use_bg_points,split ="train")
+    test_cam_infos = Load_hyper_data(datadir,0.5,use_bg_points,split="test")
 
     train_cam = format_hyper_data(train_cam_infos,"train")
     max_time = train_cam_infos.max_time
     video_cam_infos = copy.deepcopy(test_cam_infos)
     video_cam_infos.split="video"
-
 
     ply_path = os.path.join(datadir, "points.npy")
 
@@ -407,11 +405,9 @@ def format_render_poses(poses,data_infos):
         pose[:3,:] = p[:3,:]
         # matrix = np.linalg.inv(np.array(pose))
         R = pose[:3,:3]
-        T = pose[:3,3]
-        # R = pose[:3,:3]
-        # R = - R
-        # R[:,0] = -R[:,0]
-        # T = -pose[:3,3].dot(R)
+        R = - R
+        R[:,0] = -R[:,0]
+        T = -pose[:3,3].dot(R)
         FovX = focal2fov(data_infos.focal[0], image.shape[2])
         FovY = focal2fov(data_infos.focal[0], image.shape[1])
         cameras.append(CameraInfo(uid=idx, R=R, T=T, FovY=FovY, FovX=FovX, image=image,
@@ -422,7 +418,7 @@ def format_render_poses(poses,data_infos):
 
 def readdynerfInfo(datadir,use_bg_points,eval):
     # loading all the data follow hexplane format
-    ply_path = os.path.join(datadir, "points3d.ply")
+    ply_path = os.path.join(datadir, "point_cloud_downsampled.ply")
 
     from scene.neural_3D_dataset_NDC import Neural3D_NDC_Dataset
     train_dataset = Neural3D_NDC_Dataset(
@@ -443,44 +439,76 @@ def readdynerfInfo(datadir,use_bg_points,eval):
     scene_bbox_max=[2.5, 2.0, 1.0],
     eval_index=0,
         )
+    max_time = len(os.listdir(os.path.join(datadir,"cam01","images")))
+
     train_cam_infos = format_infos(train_dataset,"train")
-    
-    # test_cam_infos = format_infos(test_dataset,"test")
     val_cam_infos = format_render_poses(test_dataset.val_poses,test_dataset)
     nerf_normalization = getNerfppNorm(train_cam_infos)
-    # create pcd
-    # if not os.path.exists(ply_path):
-    # Since this data set has no colmap data, we start with random points
-    num_pts = 2000
-    print(f"Generating random point cloud ({num_pts})...")
-    threshold = 3
-    # xyz_max = np.array([1.5*threshold, 1.5*threshold, 1.5*threshold])
-    # xyz_min = np.array([-1.5*threshold, -1.5*threshold, -3*threshold])
-    xyz_max = np.array([1.5*threshold, 1.5*threshold, 1.5*threshold])
-    xyz_min = np.array([-1.5*threshold, -1.5*threshold, -1.5*threshold])
-    # We create random points inside the bounds of the synthetic Blender scenes
-    xyz = (np.random.random((num_pts, 3)))* (xyz_max-xyz_min) + xyz_min
-    print("point cloud initialization:",xyz.max(axis=0),xyz.min(axis=0))
-    shs = np.random.random((num_pts, 3)) / 255.0
-    pcd = BasicPointCloud(points=xyz, colors=SH2RGB(shs), normals=np.zeros((num_pts, 3)))
-    storePly(ply_path, xyz, SH2RGB(shs) * 255)
-    try:
-        # xyz = np.load
-        pcd = fetchPly(ply_path)
-    except:
-        pcd = None
+
+    # xyz = np.load
+    pcd = fetchPly(ply_path)
+    print("origin points,",pcd.points.shape[0])
+    
+    print("after points,",pcd.points.shape[0])
+
     scene_info = SceneInfo(point_cloud=pcd,
                            train_cameras=train_dataset,
                            test_cameras=test_dataset,
                            video_cameras=val_cam_infos,
                            nerf_normalization=nerf_normalization,
                            ply_path=ply_path,
-                           maxtime=test_dataset.num_frames
+                           maxtime=max_time
                            )
     return scene_info
+    # train_cam_infos = format_infos(train_dataset,"train")
+    
+    # # test_cam_infos = format_infos(test_dataset,"test")
+    # val_cam_infos = format_render_poses(test_dataset.val_poses,test_dataset)
+    # nerf_normalization = getNerfppNorm(train_cam_infos)
+    # # create pcd
+    # # if not os.path.exists(ply_path):
+    # # Since this data set has no colmap data, we start with random points
+    # num_pts = 2000
+    # # print(f"Generating random point cloud ({num_pts})...")
+    # threshold = 3
+    # # xyz_max = np.array([1.5*threshold, 1.5*threshold, 1.5*threshold])
+    # # xyz_min = np.array([-1.5*threshold, -1.5*threshold, -3*threshold])
+    # xyz_max = np.array([1.5*threshold, 1.5*threshold, 1.5*threshold])
+    # xyz_min = np.array([-1.5*threshold, -1.5*threshold, -1.5*threshold])
+    # # We create random points inside the bounds of the synthetic Blender scenes
+    # # xyz = (np.random.random((num_pts, 3)))* (xyz_max-xyz_min) + xyz_min
+
+    # data = plyfile.PlyData.read('/home/spaceport/Softwares/4DGaussians/output/point_cloud_faruk_cleaned.ply')
+    # xyz_data = data.elements[0].data
+    # num_pts = len(xyz_data)
+    # xyz_list = [list(x) for x in (data.elements[0].data)]
+    # xyz_np = np.array(xyz_list)
+    # xyz=xyz_np[:,0:3]
+    
+    # print("point cloud initialization:",xyz.max(axis=0),xyz.min(axis=0))
+    # shs = np.random.random((num_pts, 3)) / 255.0
+    # pcd = BasicPointCloud(points=xyz, colors=SH2RGB(shs), normals=np.zeros((num_pts, 3)))
+    # storePly(ply_path, xyz, SH2RGB(shs) * 255)
+    # try:
+    #     # xyz = np.load
+    #     pcd = fetchPly(ply_path)
+    # except:
+    #     pcd = None
+    
+    # scene_info = SceneInfo(point_cloud=pcd,
+    #                        train_cameras=train_dataset,
+    #                        test_cameras=test_dataset,
+    #                        video_cameras=val_cam_infos,
+    #                        nerf_normalization=nerf_normalization,
+    #                        ply_path=ply_path,
+    #                        maxtime=100
+    #                        )
+    # return scene_info
 sceneLoadTypeCallbacks = {
     "Colmap": readColmapSceneInfo,
     "Blender" : readNerfSyntheticInfo,
     "dynerf" : readdynerfInfo,
-    "nerfies": readHyperDataInfos,  # NeRFies & HyperNeRF dataset proposed by [https://github.com/google/hypernerf/releases/tag/v0.1]
+    "nerfies": readHyperDataInfos  # NeRFies & HyperNeRF dataset proposed by [https://github.com/google/hypernerf/releases/tag/v0.1]
+    # "spaceport": readSpaceportInfo
+
 }
