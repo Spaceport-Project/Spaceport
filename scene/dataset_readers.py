@@ -28,6 +28,8 @@ from utils.sh_utils import SH2RGB
 from scene.gaussian_model import BasicPointCloud
 from utils.general_utils import PILtoTorch
 from tqdm import tqdm
+from plyfile import PlyData, PlyElement
+
 class CameraInfo(NamedTuple):
     uid: int
     R: np.array
@@ -119,11 +121,39 @@ def readColmapCameras(cam_extrinsics, cam_intrinsics, images_folder):
     return cam_infos
 
 def fetchPly(path):
+    print("Loading point cloud from in fetchply{}".format(path))
     plydata = PlyData.read(path)
     vertices = plydata['vertex']
     positions = np.vstack([vertices['x'], vertices['y'], vertices['z']]).T
     colors = np.vstack([vertices['red'], vertices['green'], vertices['blue']]).T / 255.0
     normals = np.vstack([vertices['nx'], vertices['ny'], vertices['nz']]).T
+    print("Loaded {} points".format(positions.shape[0]))
+    print("Loaded {} colors".format(colors.shape[0]))
+    print("Loaded {} normals".format(normals.shape[0]))
+    pcd = BasicPointCloud(points=positions, colors=colors, normals=normals)
+    print(("pcd type: ", type(pcd)))
+    return pcd
+
+def fetchPly_new(path):
+    print("Loading point cloud from {}".format(path))
+    plydata = PlyData.read(path)
+    vertices = plydata['vertex']
+
+    # Mandatory: positions
+    positions = np.vstack([vertices['x'], vertices['y'], vertices['z']]).T
+
+    # Optional: colors
+    if all(c in vertices.dtype.names for c in ['red', 'green', 'blue']):
+        colors = np.vstack([vertices['red'], vertices['green'], vertices['blue']]).T / 255.0
+    else:
+        colors = np.zeros_like(positions)  # Or any default value
+
+    # Optional: normals
+    if all(n in vertices.dtype.names for n in ['nx', 'ny', 'nz']):
+        normals = np.vstack([vertices['nx'], vertices['ny'], vertices['nz']]).T
+    else:
+        normals = np.zeros_like(positions)  # Or any default value
+
     return BasicPointCloud(points=positions, colors=colors, normals=normals)
 
 def storePly(path, xyz, rgb):
@@ -171,6 +201,7 @@ def readColmapSceneInfo(path, images, eval, llffhold=8):
     ply_path = os.path.join(path, "sparse/0/points3D.ply")
     bin_path = os.path.join(path, "sparse/0/points3D.bin")
     txt_path = os.path.join(path, "sparse/0/points3D.txt")
+    print("Reading point cloud from {}".format(ply_path))
     if not os.path.exists(ply_path):
         print("Converting point3d.bin to .ply, will happen only the first time you open the scene.")
         try:
@@ -180,7 +211,7 @@ def readColmapSceneInfo(path, images, eval, llffhold=8):
         storePly(ply_path, xyz, rgb)
     
     try:
-        pcd = fetchPly(ply_path)
+        pcd = fetchPly_new(ply_path)
         
     except:
         pcd = None
@@ -414,12 +445,162 @@ def format_render_poses(poses,data_infos):
                             time = time))
     return cameras
 
+import numpy as np
+import struct
+
+def read_colmap_points3D_binary(file_path):
+    points = {}
+    with open(file_path, "rb") as fid:
+        num_points = struct.unpack("<Q", fid.read(8))[0]
+        for _ in range(num_points):
+            point_id = struct.unpack("<Q", fid.read(8))[0]
+            xyz = struct.unpack("<ddd", fid.read(24))
+            rgb = struct.unpack("<BBB", fid.read(3))
+            error = struct.unpack("<d", fid.read(8))[0]
+            track_len = struct.unpack("<Q", fid.read(8))[0]
+            track_elems = struct.unpack("<" + "ii"*track_len, fid.read(16 * track_len))
+            points[point_id] = {
+                "xyz": np.array(xyz),
+                "rgb": np.array(rgb),
+                "error": error,
+                "track": track_elems
+            }
+    return points
+
+def readSpaceportInfo(datadir,use_bg_points,eval):
+    ply_path = os.path.join(datadir, "points3d.ply")
+    print("ply_path spaceport: ", ply_path)
+    # implement class for spaceportdataset
+    print("Inside readSpaceportInfo Loading data from: ", datadir)
+    from scene.spaceport_dataset import SpaceportDataset
+    
+    train_dataset = SpaceportDataset(
+        datadir,
+        "train",
+        1.0,
+        time_scale=1,
+        scene_bbox_min=[-2.5, -2.0, -1.0],
+        scene_bbox_max=[2.5, 2.0, 1.0],
+        eval_index=0,
+        )
+    
+    test_dataset = SpaceportDataset(
+        datadir,
+        "test",
+        1.0,
+        time_scale=1,
+        scene_bbox_min=[-2.5, -2.0, -1.0],
+        scene_bbox_max=[2.5, 2.0, 1.0],
+        eval_index=0,
+        )
+    
+    max_time = len(os.listdir(os.path.join(datadir,"cam01","images")))
+    train_cam_infos = format_infos(train_dataset,"train")
+    val_cam_infos = format_render_poses(test_dataset.val_poses,test_dataset)
+    nerf_normalization = getNerfppNorm(train_cam_infos)
+
+    initialize_pcd_randomly = False
+
+    if initialize_pcd_randomly:
+        num_pts = 2000
+        print(f"Generating random point cloud ({num_pts})...")
+        threshold = 2
+
+        xyz_max = np.array([1.5*threshold, 1.5*threshold, 1.5*threshold])
+        xyz_min = np.array([-1.5*threshold, -1.5*threshold, -1.5*threshold])
+
+        # Create random points inside the bounds of the scene
+        xyz = (np.random.random((num_pts, 3)))* (xyz_max-xyz_min) + xyz_min
+
+        print("point cloud initialization:",xyz.max(axis=0),xyz.min(axis=0))
+        shs = np.random.random((num_pts, 3)) / 255.0
+        pcd = BasicPointCloud(points=xyz, colors=SH2RGB(shs), normals=np.zeros((num_pts, 3)))
+        storePly(ply_path, xyz, SH2RGB(shs) * 255)
+    else:
+        from_colmap = False
+        if not from_colmap:
+            print("ply_path: ", ply_path)
+            ply_path = "/home/spaceport/DATA/13-12-23/10-100_lum90_bayer_png_30fps/10-100/undistorted_LLFF_input/point_cloud.ply"
+            # ply_path = '/home/spaceport/Softwares/4DGaussians/output/faruk_teknopark_289frm_colmap.ply'
+            # ply_path = '/home/spaceport/Softwares/4DGaussians/output/faruk_teknopark_10frm_normal_dspsift_akaze_extractors.ply'
+            plydata = PlyData.read(ply_path)
+            vertices = plydata['vertex']
+            num_pts = len(vertices['x'])
+            xyz_new = np.column_stack((vertices['x'], vertices['y'], vertices['z']))
+            shs = np.random.random((num_pts, 3)) / 255.0
+            pcd = BasicPointCloud(points=xyz_new, colors=SH2RGB(shs), normals=np.zeros((num_pts, 3)))
+            storePly(ply_path, xyz_new, SH2RGB(shs) * 255)
+            print("size of plydata: ", xyz_new.shape)
+
+        else:
+            # base_dir is the parent directory of the datadir
+            base_dir = os.path.dirname(datadir)
+            print(base_dir)
+            print("*********************************************************")
+            # Construct the path for the desired file using the base directory
+            points_file_path = os.path.join(base_dir, "undistorted_LLFF_input/sparse/0/points3D.txt")
+
+            # Assuming the text file is saved as 'points.txt'
+            ply_path = base_dir + '/undistorted/points3d.ply'
+
+            #ply_path = '/media/hamit/Elements1/23_11_2023_DATA/data_lum90_close_green_all/542-632_undistorted/points3d.ply'
+            print("points_file_path: ", ply_path)
+            #points_file_path = '/media/hamit/Elements1/23_11_2023_DATA/data_lum90_close_green_all/single_cam_undistorted_for_LLFF/sparse/0/points3D.txt'
+            # Read the points data from the text file
+            points = []
+            colors = []
+            with open(points_file_path, 'r') as file:
+                for line in file:
+                    if line.startswith('#') or not line.strip():
+                        continue  # Skip comments and empty lines
+                    parts = line.split()
+                    x, y, z = float(parts[1]), float(parts[2]), float(parts[3])
+                    points.append([x, y, z])
+
+            # Convert points to numpy array
+            xyz_new = np.array(points)
+
+            points_file_path_ply = os.path.join(base_dir, "undistorted_LLFF_input/sparse/0/point_cloud.ply")
+            plydata = PlyData.read(points_file_path_ply)
+            vertices = plydata['vertex']
+            num_pts = len(vertices['x'])
+            color_new = np.column_stack((vertices['red'], vertices['green'], vertices['blue']))
+            print("color_new: ", color_new.shape)            
+
+            # Generating random colors and normals for the point cloud
+            num_pts = xyz_new.shape[0]
+            shs = np.random.random((num_pts, 3)) / 255.0
+            #pcd = BasicPointCloud(points=xyz_new, colors=color_new, normals=np.zeros((num_pts, 3)))
+            pcd = BasicPointCloud(points=xyz_new, colors=SH2RGB(shs), normals=np.zeros((num_pts, 3)))
+            storePly(ply_path, xyz_new, SH2RGB(shs) * 255)
+
+            print("size of plydata: ", xyz_new.shape, ply_path)
+
+    try:
+        # xyz = np.load
+        pcd = fetchPly(ply_path)
+        print('fetching ply: ', ply_path)
+    except:
+    #    pcd = None
+        print("No ply file found")
+    print("train_dataset: ", len(train_dataset))
+    scene_info = SceneInfo(point_cloud=pcd,
+                           train_cameras=train_dataset,
+                           test_cameras=test_dataset,
+                           video_cameras=val_cam_infos,
+                           nerf_normalization=nerf_normalization,
+                           ply_path=ply_path,
+                           maxtime=max_time
+                           )
+    print("scene_info: ", scene_info.point_cloud)
+    return scene_info
 
 def readdynerfInfo(datadir,use_bg_points,eval):
     # loading all the data follow hexplane format
     ply_path = os.path.join(datadir, "points3d.ply")
 
     from scene.neural_3D_dataset_NDC import Neural3D_NDC_Dataset
+    print("Loading data  for dynerf from: ", datadir)
     train_dataset = Neural3D_NDC_Dataset(
     datadir,
     "train",
@@ -446,7 +627,7 @@ def readdynerfInfo(datadir,use_bg_points,eval):
     # create pcd
     # if not os.path.exists(ply_path):
     # Since this data set has no colmap data, we start with random points
-    num_pts = 2000
+    """num_pts = 2000
     print(f"Generating random point cloud ({num_pts})...")
     threshold = 3
     # xyz_max = np.array([1.5*threshold, 1.5*threshold, 1.5*threshold])
@@ -458,12 +639,56 @@ def readdynerfInfo(datadir,use_bg_points,eval):
     print("point cloud initialization:",xyz.max(axis=0),xyz.min(axis=0))
     shs = np.random.random((num_pts, 3)) / 255.0
     pcd = BasicPointCloud(points=xyz, colors=SH2RGB(shs), normals=np.zeros((num_pts, 3)))
-    storePly(ply_path, xyz, SH2RGB(shs) * 255)
+    storePly(ply_path, xyz, SH2RGB(shs) * 255)"""
+    from_colmap = True
+    if not from_colmap:
+        print("ply_path: ", ply_path)
+        ply_path = '/home/hamit/Softwares/repos/4DGaussians/output/dynerf/salmon/clean_salmon_point_cloud_v2.ply'
+        plydata = PlyData.read(ply_path)
+        vertices = plydata['vertex']
+        num_pts = len(vertices['x'])
+        xyz_new = np.column_stack((vertices['x'], vertices['y'], vertices['z']))
+        shs = np.random.random((num_pts, 3)) / 255.0
+        pcd = BasicPointCloud(points=xyz_new, colors=SH2RGB(shs), normals=np.zeros((num_pts, 3)))
+        storePly(ply_path, xyz_new, SH2RGB(shs) * 255)
+        print("size of plydata: ", xyz_new.shape)
+
+    else:
+        # Assuming the text file is saved as 'points.txt'
+        points_file_path = '/media/hamit/Elements/dinamik_data/flame_salmon_frames/frame_30s_v2/col_out/points3D.txt'
+        ply_path = '/home/hamit/Softwares/repos/4DGaussians/output/dynerf/salmon/clean_salmon_colmap.ply'
+
+        # Read the points data from the text file
+        points = []
+        with open(points_file_path, 'r') as file:
+            for line in file:
+                if line.startswith('#') or not line.strip():
+                    continue  # Skip comments and empty lines
+                parts = line.split()
+                x, y, z = float(parts[1]), float(parts[2]), float(parts[3])
+                points.append([x, y, z])
+
+        # Convert points to numpy array
+        xyz_new = np.array(points)
+
+        # Generating random colors and normals for the point cloud
+        num_pts = xyz_new.shape[0]
+        shs = np.random.random((num_pts, 3)) / 255.0
+        pcd = BasicPointCloud(points=xyz_new, colors=SH2RGB(shs), normals=np.zeros((num_pts, 3)))
+
+        # Store the point cloud data in a PLY file
+        storePly(ply_path, xyz_new, SH2RGB(shs) * 255)
+
+        print("size of plydata: ", xyz_new.shape)
+
+    #pcd = fetchPly(ply_path)
     try:
         # xyz = np.load
         pcd = fetchPly(ply_path)
     except:
-        pcd = None
+        #pcd = None
+        print("No ply file found")
+    print("train_dataset: ", len(train_dataset))
     scene_info = SceneInfo(point_cloud=pcd,
                            train_cameras=train_dataset,
                            test_cameras=test_dataset,
@@ -478,4 +703,5 @@ sceneLoadTypeCallbacks = {
     "Blender" : readNerfSyntheticInfo,
     "dynerf" : readdynerfInfo,
     "nerfies": readHyperDataInfos,  # NeRFies & HyperNeRF dataset proposed by [https://github.com/google/hypernerf/releases/tag/v0.1]
+    "spaceport": readSpaceportInfo,
 }
