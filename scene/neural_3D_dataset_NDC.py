@@ -9,6 +9,8 @@ import torch
 from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms as T
+from scipy.spatial.transform import Rotation as Rot
+
 from tqdm import tqdm
 
 
@@ -90,7 +92,7 @@ def viewmatrix(z, up, pos):
     vec0 = normalize(np.cross(vec1_avg, vec2))
     vec1 = normalize(np.cross(vec2, vec0))
     m = np.eye(4)
-    m[:3] = np.stack([-vec0, vec1, vec2, pos], 1)
+    m[:3] = np.stack([vec0, vec1, vec2, pos], 1)
     return m
 
 
@@ -108,7 +110,77 @@ def render_path_spiral(c2w, up, rads, focal, zdelta, zrate, N_rots=2, N=120):
         render_poses.append(viewmatrix(z, up, c))
     return render_poses
 
+def render_grid(c2w, up, focal):
+    render_poses = []
+    GRID_SIZE_X = 10
+    GRID_SIZE_Z = 10
+    min_x, max_x = -2 , 3
+    min_z, max_z = 0., 3.
+    step_x = (max_x - min_x)/GRID_SIZE_X
+    step_z = (max_z - min_z)/GRID_SIZE_Z
+    for j, z in enumerate(np.arange(max_z, min_z , -step_z)):
+        for i, x in enumerate(np.arange(max_x, min_x, -step_x)):
+            c = np.array([x, 0, z])
+            # camera_to_world_clone = np.eye(4)
+            # camera_to_world_clone[0, 3] = x
+            # camera_to_world_clone[2, 3] = z
+            # camera_to_world_clone= camera_to_world_clone.tolist()
+            # print (camera_to_world_clone)
 
+            # z_tmp = np.dot(c2w[:3, :4], np.array([0, 0, -focal, 1.0]))
+            # z1 = normalize(c - z_tmp)
+            # z1 = np.array([0.0, 0.0, 1.0])
+            z1 = c2w[:3,2]
+            render_poses.append(viewmatrix(z1, up, c))
+
+            
+
+
+    # for theta in np.linspace(0.0, 2.0 * np.pi * N_rots, N + 1)[:-1]:
+    #     c2w_tmp = c2w[:3, :4]
+    #     tmp_array = np.array([np.cos(theta), -np.sin(theta), -np.sin(theta * zrate), 1.0]) * rads,
+    #     c = np.dot(
+    #         c2w_tmp,
+    #         np.array([np.cos(theta), -np.sin(theta), -np.sin(theta * zrate), 1.0]) * rads,
+           
+    #     )
+    #     z_tmp = np.dot(c2w[:3, :4], np.array([0, 0, -focal, 1.0]))
+    #     z = normalize(c - z_tmp)
+    #     render_poses.append(viewmatrix(z, up, c))
+    return render_poses
+
+def get_grid(near_fars):
+    """
+    Generate a set of poses using NeRF's spiral camera trajectory as validation poses.
+    """
+    # center pose
+    # c2w = average_poses(c2ws_all)
+    c2w = np.eye(4)
+    # Get average pose
+    # c2ws_all_tmp = c2ws_all[:, :3, 1]
+    # up = np.array([0.0,1.0,0.0])
+    # c2w[:, 0] = np.array([0.866, 0, -0.5, 0])
+    # c2w[:, 2] = np.array([0.5, 0, 0.866, 0])
+
+    r = Rot.from_euler('yz', (30, 5),  degrees=True)
+    print(r.as_matrix())
+    c2w_r = np.matmul(r.as_matrix(), c2w[:3,:3])
+    up = c2w_r[:3,1]
+
+    c2w[:3,:3]= c2w_r
+    # Find a reasonable "focus depth" for this dataset
+    dt = 0.75
+    close_depth, inf_depth = near_fars.min() * 0.9, near_fars.max() * 5.0
+    focal = 1.0 / ((1.0 - dt) / close_depth + dt / inf_depth)
+
+    # Get radii for spiral path
+    # zdelta = near_fars.min() * 0.2
+    # tt = c2ws_all[:, :3, 3]
+    # rads = np.percentile(np.abs(tt), 90, 0) * rads_scale
+    render_poses = render_grid(
+        c2w, up,  focal
+    )
+    return np.stack(render_poses)
 
 def process_video(video_data_save, video_path, img_wh, downsample, transform):
     """
@@ -226,12 +298,12 @@ class Neural3D_NDC_Dataset(Dataset):
         sphere_scale=1.0,
     ):
         self.img_wh = (
-            int(1352 / downsample),
-            int(1014 / downsample),
+           1912, # int(1352 / downsample),
+           1172, # int(1014 / downsample),
         )  # According to the neural 3D paper, the default resolution is 1024x768
         self.root_dir = datadir
         self.split = split
-        self.downsample = 2704 / self.img_wh[0]
+        self.downsample = downsample #2704 / self.img_wh[0]
         self.is_stack = is_stack
         self.N_vis = N_vis
         self.time_scale = time_scale
@@ -283,8 +355,10 @@ class Neural3D_NDC_Dataset(Dataset):
         # poses[..., 3] /= scale_factor
 
         # Sample N_views poses for validation - NeRF-like camera trajectory.
-        N_views = 300
-        self.val_poses = get_spiral(poses, self.near_fars, N_views=N_views)
+        N_views = 200
+        # self.val_poses = get_spiral(poses, self.near_fars, N_views=N_views)
+        self.val_poses= get_grid(self.near_fars)
+
         # self.val_poses = self.directions
         W, H = self.img_wh
         poses_i_train = []
@@ -307,7 +381,7 @@ class Neural3D_NDC_Dataset(Dataset):
         image_times = []
         N_cams = 0
         N_time = 0
-        countss = 300
+        countss = 100
         for index, video_path in enumerate(videos):
             
             if index == self.eval_index:

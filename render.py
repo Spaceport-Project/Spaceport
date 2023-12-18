@@ -44,6 +44,55 @@ def multithread_write(image_list, path):
             write_image(image_list[index], index, path)
     
 to8b = lambda x : (255*np.clip(x.cpu().numpy(),0,1)).astype(np.uint8)
+def render_set_all(model_path, name, iteration, views, gaussians, pipeline, background, cam_type, num_frames):
+    render_path = os.path.join(model_path, name, "ours_{}".format(iteration), "renders")
+    gts_path = os.path.join(model_path, name, "ours_{}".format(iteration), "gt")
+
+    makedirs(render_path, exist_ok=True)
+    makedirs(gts_path, exist_ok=True)
+ 
+    cnt=0
+    for view in tqdm(views, desc="Rendering progress"):
+        render_images = []
+        gt_list = []
+        gt_list2 = []
+        render_list = []
+        for idx in tqdm(range(num_frames)):
+        # for idx, view in enumerate(tqdm(range(300), desc="Rendering progress")):
+            if idx == 0:time1 = time()
+            view.time = idx*0.75/num_frames
+            # print(f"views[{idx}]: {view.image_name}, {view.R}")
+            rendering = render(view, gaussians, pipeline, background, cam_type=cam_type)["render"]
+            # rendering = render(view, gaussians, pipeline, background)["render"]
+            # torchvision.utils.save_image(rendering, os.path.join(render_path, '{0:05d}'.format(idx) + ".png"))
+            render_images.append(to8b(rendering).transpose(1,2,0))
+            # print(to8b(rendering).shape)
+            render_list.append(rendering)
+            if name in ["train", "test"]:
+                gt_list2.append(to8b(view.original_image).transpose(1,2,0))
+                gt = view.original_image[0:3, :, :]
+                # torchvision.utils.save_image(gt, os.path.join(gts_path, '{0:05d}'.format(idx) + ".png"))
+            
+                gt_list.append(gt)
+        time2=time()
+        print("FPS:",(len(views)-1)/(time2-time1))
+        count = 0
+        print("writing training images.")
+        if len(gt_list) != 0:
+            for image in tqdm(gt_list):
+                torchvision.utils.save_image(image, os.path.join(gts_path, '{0:05d}'.format(count) + ".png"))
+                count+=1
+        count = 0
+        print("writing rendering images.")
+        # if len(render_list) != 0:
+        #     for image in tqdm(render_list):
+        #         torchvision.utils.save_image(image, os.path.join(render_path, '{0:05d}'.format(count) + ".png"))
+        #         count +=1
+        
+        imageio.mimwrite(os.path.join(model_path, name, "ours_{}".format(iteration), f'video_rgb_{cnt}.mp4'), render_images, fps=30, quality=8)
+        cnt+=1
+        # render_list.clear()
+        # del render_list[:]
 def render_set(model_path, name, iteration, views, gaussians, pipeline, background, cam_type):
     render_path = os.path.join(model_path, name, "ours_{}".format(iteration), "renders")
     gts_path = os.path.join(model_path, name, "ours_{}".format(iteration), "gt")
@@ -98,7 +147,9 @@ def render_sets(dataset : ModelParams, hyperparam, iteration : int, pipeline : P
         if not skip_test:
             render_set(dataset.model_path, "test", scene.loaded_iter, scene.getTestCameras(), gaussians, pipeline, background,cam_type)
         if not skip_video:
-            render_set(dataset.model_path,"video",scene.loaded_iter,scene.getVideoCameras(),gaussians,pipeline,background,cam_type)
+            render_set_all(dataset.model_path,"video",scene.loaded_iter,scene.getVideoCameras(),gaussians,pipeline,background,cam_type, num_frames= scene.maxtime)
+            # render_set(dataset.model_path,"video",scene.loaded_iter,scene.getVideoCameras(),gaussians,pipeline,background,cam_type)
+
 if __name__ == "__main__":
     # Set up command line argument parser
     parser = ArgumentParser(description="Testing script parameters")
