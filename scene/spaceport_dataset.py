@@ -2,7 +2,7 @@ import concurrent.futures
 import gc
 import glob
 import os
-
+import json
 import cv2
 import numpy as np
 import torch
@@ -44,10 +44,12 @@ def average_poses(poses):
     y_ = poses[..., 1].mean(0)  # (3)
 
     # 4. Compute the x axis
-    x = normalize(np.cross(z, y_))  # (3)
+    # x = normalize(np.cross(z, y_))  # (3)
+    x = normalize(np.cross(y_, z))  # (3)
 
     # 5. Compute the y axis (as z and x are normalized, y is already of norm 1)
-    y = np.cross(x, z)  # (3)
+    #y = np.cross(x, z)  # (3)
+    y = np.cross(z, x)  # (3)
 
     pose_avg = np.stack([x, y, z, center], 1)  # (3, 4)
 
@@ -76,8 +78,9 @@ def center_poses(poses, blender2opencv):
     poses_homo = np.concatenate(
         [poses, last_row], 1
     )  # (N_images, 4, 4) homogeneous coordinate
+    pose_avg_homo_inv = np.linalg.inv(pose_avg_homo)
+    poses_centered = pose_avg_homo_inv @ poses_homo  # (N_images, 4, 4)
 
-    poses_centered = np.linalg.inv(pose_avg_homo) @ poses_homo  # (N_images, 4, 4)
     #     poses_centered = poses_centered  @ blender2opencv
     poses_centered = poses_centered[:, :3]  # (N_images, 3, 4)
 
@@ -88,10 +91,38 @@ def viewmatrix(z, up, pos):
     vec2 = normalize(z)
     vec1_avg = up
     vec0 = normalize(np.cross(vec1_avg, vec2))
+    #vec0 = normalize(np.cross(vec2, vec1_avg))
+    # pos[0] = -1*pos[2]
+    # pos[2] = -1*pos[0]
     vec1 = normalize(np.cross(vec2, vec0))
     m = np.eye(4)
-    m[:3] = np.stack([-vec0, vec1, vec2, pos], 1)
+    m[:3] = np.stack([vec0, vec1, vec2, pos], 1)
     return m
+
+
+def render_grid(c2w, up, focal):
+    render_poses = []
+    GRID_SIZE_X = 10
+    GRID_SIZE_Z = 10
+    min_x, max_x = -1.0 , 1.0
+    min_z, max_z = -0.8, 0.5
+    step_x = (max_x - min_x)/GRID_SIZE_X
+    step_z = (max_z - min_z)/GRID_SIZE_Z
+    for j, z in enumerate(np.arange(max_z, min_z , -step_z)):
+        for i, x in enumerate(np.arange(max_x, min_x, -step_x)):
+            c = np.array([x, 0, z])
+           
+
+            z_tmp = np.dot(c2w[:3, :4], np.array([0, 0, -focal, 1.0]))
+            # z1 = normalize(c - z_tmp)
+            z1 = np.array([0.0, 0.0, 1.0])
+            render_poses.append(viewmatrix(z1, up, c))
+
+            
+
+
+ 
+    return render_poses
 
 
 def render_path_spiral(c2w, up, rads, focal, zdelta, zrate, N_rots=2, N=120):
@@ -99,12 +130,15 @@ def render_path_spiral(c2w, up, rads, focal, zdelta, zrate, N_rots=2, N=120):
     rads = np.array(list(rads) + [1.0])
 
     for theta in np.linspace(0.0, 2.0 * np.pi * N_rots, N + 1)[:-1]:
+        c2w_tmp = c2w[:3, :4]
+        tmp_array = np.array([np.cos(theta), -np.sin(theta), -np.sin(theta * zrate), 1.0]) * rads,
         c = np.dot(
-            c2w[:3, :4],
-            np.array([np.cos(theta), -np.sin(theta), -np.sin(theta * zrate), 1.0])
-            * rads,
+            c2w_tmp,
+            np.array([np.cos(theta), -np.sin(theta), -np.sin(theta * zrate), 1.0]) * rads,
+           
         )
-        z = normalize(c - np.dot(c2w[:3, :4], np.array([0, 0, -focal, 1.0])))
+        z_tmp = np.dot(c2w[:3, :4], np.array([0, 0, -focal, 1.0]))
+        z = normalize(c - z_tmp)
         render_poses.append(viewmatrix(z, up, c))
     return render_poses
 
@@ -153,15 +187,13 @@ def process_video(video_data_save, video_path, img_wh, downsample, transform):
     print(f"Video {video_path} processed.")
     return None
 
-# This one is not used
 # define a function to process all videos
 def process_videos(videos, skip_index, img_wh, downsample, transform, num_workers=1):
     """
     A multi-threaded function to load all videos fastly and memory-efficiently.
     To save memory, we pre-allocate a tensor to store all the images and spawn multi-threads to load the images into this tensor.
     """
-    #all_imgs = torch.zeros(len(videos) - 1, 300, img_wh[-1] , img_wh[-2], 3)
-    all_imgs = torch.zeros(len(videos) - 1, 201, img_wh[-1] , img_wh[-2], 3)
+    all_imgs = torch.zeros(len(videos) - 1, 300, img_wh[-1] , img_wh[-2], 3)
     with concurrent.futures.ThreadPoolExecutor(max_workers=num_workers) as executor:
         # start a thread for each video
         current_index = 0
@@ -183,6 +215,32 @@ def process_videos(videos, skip_index, img_wh, downsample, transform, num_worker
                 current_index += 1
     return all_imgs
 
+def get_grid(near_fars):
+    """
+    Generate a set of poses using NeRF's spiral camera trajectory as validation poses.
+    """
+    # center pose
+    # c2w = average_poses(c2ws_all)
+    c2w = np.eye(4)
+    # Get average pose
+    # c2ws_all_tmp = c2ws_all[:, :3, 1]
+    up = np.array([0.0,1.0,0.0])
+
+    # Find a reasonable "focus depth" for this dataset
+    dt = 0.75
+    close_depth, inf_depth = near_fars.min() * 0.9, near_fars.max() * 5.0
+    focal = 1.0 / ((1.0 - dt) / close_depth + dt / inf_depth)
+
+    # Get radii for spiral path
+    # zdelta = near_fars.min() * 0.2
+    # tt = c2ws_all[:, :3, 3]
+    # rads = np.percentile(np.abs(tt), 90, 0) * rads_scale
+    render_poses = render_grid(
+        c2w, up,  focal
+    )
+    return np.stack(render_poses)
+
+
 def get_spiral(c2ws_all, near_fars, rads_scale=1.0, N_views=120):
     """
     Generate a set of poses using NeRF's spiral camera trajectory as validation poses.
@@ -191,7 +249,8 @@ def get_spiral(c2ws_all, near_fars, rads_scale=1.0, N_views=120):
     c2w = average_poses(c2ws_all)
 
     # Get average pose
-    up = normalize(c2ws_all[:, :3, 1].sum(0))
+    c2ws_all_tmp = c2ws_all[:, :3, 1]
+    up = normalize(c2ws_all_tmp.sum(0))
 
     # Find a reasonable "focus depth" for this dataset
     dt = 0.75
@@ -207,6 +266,11 @@ def get_spiral(c2ws_all, near_fars, rads_scale=1.0, N_views=120):
     )
     return np.stack(render_poses)
 
+def load_cam_poses(path):
+    with open(path, 'r', encoding="utf-8") as infile:
+        data_in = json.load(infile)
+    
+    return np.array(data_in["cam_poses"])
 
 class SpaceportDataset(Dataset):
     def __init__(
@@ -292,7 +356,9 @@ class SpaceportDataset(Dataset):
 
         # Sample N_views poses for validation - NeRF-like camera trajectory.
         N_views = 300
-        self.val_poses = get_spiral(poses, self.near_fars, N_views=N_views)
+        # self.val_poses = get_spiral(poses, self.near_fars, N_views=N_views)
+        self.val_poses= get_grid(self.near_fars)
+
         # self.val_poses = self.directions
         W, H = self.img_wh
         poses_i_train = []
@@ -354,6 +420,8 @@ class SpaceportDataset(Dataset):
                     
             images_path = os.listdir(image_path)
             images_path.sort()
+            if index == 0: 
+                self.num_frames = len(images_path)
             this_count = 0
             for idx, path in enumerate(images_path):
                 if this_count >=countss:break
