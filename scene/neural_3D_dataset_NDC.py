@@ -160,7 +160,8 @@ def process_videos(videos, skip_index, img_wh, downsample, transform, num_worker
     A multi-threaded function to load all videos fastly and memory-efficiently.
     To save memory, we pre-allocate a tensor to store all the images and spawn multi-threads to load the images into this tensor.
     """
-    all_imgs = torch.zeros(len(videos) - 1, 300, img_wh[-1] , img_wh[-2], 3)
+    #all_imgs = torch.zeros(len(videos) - 1, 300, img_wh[-1] , img_wh[-2], 3)
+    all_imgs = torch.zeros(len(videos) - 1, 201, img_wh[-1] , img_wh[-2], 3)
     with concurrent.futures.ThreadPoolExecutor(max_workers=num_workers) as executor:
         # start a thread for each video
         current_index = 0
@@ -228,9 +229,14 @@ class Neural3D_NDC_Dataset(Dataset):
         self.img_wh = (
             int(1352 / downsample),
             int(1014 / downsample),
+            #int(1909 / downsample),
+            #int(1172 / downsample),
+            #int(954 / downsample),
+            #int(586 / downsample),
         )  # According to the neural 3D paper, the default resolution is 1024x768
         self.root_dir = datadir
         self.split = split
+        #self.downsample = 1909 / self.img_wh[0]
         self.downsample = 2704 / self.img_wh[0]
         self.is_stack = is_stack
         self.N_vis = N_vis
@@ -307,6 +313,7 @@ class Neural3D_NDC_Dataset(Dataset):
         N_cams = 0
         N_time = 0
         countss = 300
+        #countss = 201
         for index, video_path in enumerate(videos):
             
             if index == self.eval_index:
@@ -357,7 +364,7 @@ class Neural3D_NDC_Dataset(Dataset):
                 # if self.downsample != 1.0:
                 #     img = video_frame.resize(self.img_wh, Image.LANCZOS)
                 # img.save(os.path.join(image_path,"%04d.png"%count))
-                this_count+=1
+                this_count+=1  
             N_time = len(images_path)
 
                 #     video_data_save[count] = img.permute(1,2,0)
