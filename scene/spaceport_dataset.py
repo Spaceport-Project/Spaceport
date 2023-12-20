@@ -344,7 +344,7 @@ class SpaceportDataset(Dataset):
                         if self.downsample != 1.0:
 
                             img = video_frame.resize(self.img_wh, Image.LANCZOS)
-                        img.save(os.path.join(image_path,"%04d.jpg"%count))
+                        img.save(os.path.join(image_path,"%04d.png"%count))
 
                         # img = transform(img)
                         count += 1
@@ -367,7 +367,7 @@ class SpaceportDataset(Dataset):
                 image_poses.append((R,T))
                 # if self.downsample != 1.0:
                 #     img = video_frame.resize(self.img_wh, Image.LANCZOS)
-                # img.save(os.path.join(image_path,"%04d.jpg"%count))
+                # img.save(os.path.join(image_path,"%04d.png"%count))
                 this_count+=1  
             N_time = len(images_path)
 

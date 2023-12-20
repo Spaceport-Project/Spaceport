@@ -29,7 +29,12 @@ from utils.loader_utils import FineSampler, get_stamp_list
 import lpips
 from utils.scene_utils import render_training_image
 from time import time
-import copy
+
+import os
+print(os.environ.get('CUDA_HOME'))
+print(os.environ.get('LD_LIBRARY_PATH'))
+# calib_data = np.load("data/dynerf/cook_spinach_orig/poses_bounds.npy")
+#calib_data_LLFF = np.load("data/dynerf/cook_spinach_LLFF/poses_bounds.npy")
 
 to8b = lambda x : (255*np.clip(x.cpu().numpy(),0,1)).astype(np.uint8)
 
@@ -126,6 +131,7 @@ def scene_reconstruction(dataset, opt, hyper, pipe, testing_iterations, saving_i
             gaussians.oneupSHdegree()
 
         # Pick a random Camera
+<<<<<<< HEAD
 
         # dynerf's branch
         if opt.dataloader and not load_in_memory:
@@ -136,6 +142,19 @@ def scene_reconstruction(dataset, opt, hyper, pipe, testing_iterations, saving_i
                 if not random_loader:
                     viewpoint_stack_loader = DataLoader(viewpoint_stack, batch_size=opt.batch_size,shuffle=True,num_workers=32,collate_fn=list)
                     random_loader = True
+=======
+        if not viewpoint_stack:
+            viewpoint_stack = scene.getTrainCameras()
+            batch_size = int(opt.batch_size)
+            viewpoint_stack_loader = DataLoader(viewpoint_stack, batch_size=batch_size,shuffle=True,num_workers=32,collate_fn=list)
+            loader = iter(viewpoint_stack_loader)
+        if opt.dataloader:
+            try:
+                viewpoint_cams = next(loader)
+            except StopIteration:
+                print("reset dataloader")
+                batch_size = int(opt.batch_size)
+>>>>>>> c006a2a5dbe81d963b422e07304a968cb863a091
                 loader = iter(viewpoint_stack_loader)
 
         else:
@@ -229,6 +248,7 @@ def scene_reconstruction(dataset, opt, hyper, pipe, testing_iterations, saving_i
                 print("\n[ITER {}] Saving Gaussians".format(iteration))
                 scene.save(iteration, stage)
             if dataset.render_process:
+<<<<<<< HEAD
                 if (iteration < 1000 and iteration % 10 == 9) \
                     or (iteration < 3000 and iteration % 50 == 49) \
                         or (iteration < 60000 and iteration %  100 == 99) :
@@ -236,6 +256,12 @@ def scene_reconstruction(dataset, opt, hyper, pipe, testing_iterations, saving_i
                         render_training_image(scene, gaussians, [test_cams[iteration%len(test_cams)]], render, pipe, background, stage+"test", iteration,timer.get_elapsed_time(),scene.dataset_type)
                         render_training_image(scene, gaussians, [train_cams[iteration%len(train_cams)]], render, pipe, background, stage+"train", iteration,timer.get_elapsed_time(),scene.dataset_type)
                         # render_training_image(scene, gaussians, train_cams, render, pipe, background, stage+"train", iteration,timer.get_elapsed_time(),scene.dataset_type)
+=======
+                if (iteration < 1000 and iteration % 100 == 1) \
+                    or (iteration < 3000 and iteration % 500 == 1) \
+                        or (iteration < 10000 and iteration %  1000 == 1) \
+                            or (iteration < 60000 and iteration % 1000 ==1):
+>>>>>>> c006a2a5dbe81d963b422e07304a968cb863a091
 
                     # total_images.append(to8b(temp_image).transpose(1,2,0))
             timer.start()

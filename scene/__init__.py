@@ -57,10 +57,6 @@ class Scene:
         elif os.path.exists(os.path.join(args.source_path,"poses_bounds_spaceport.npy")):
             scene_info = sceneLoadTypeCallbacks["spaceport"](args.source_path, args.white_background, args.eval)
         
-            dataset_type="nerfies"
-        elif os.path.exists(os.path.join(args.source_path,"train_meta.json")):
-            scene_info = sceneLoadTypeCallbacks["PanopticSports"](args.source_path)
-            dataset_type="PanopticSports"
         else:
             assert False, "Could not recognize scene type!"
         self.maxtime = scene_info.maxtime

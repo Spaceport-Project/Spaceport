@@ -21,16 +21,14 @@ ModelHiddenParams = dict(
 
 )
 OptimizationParams = dict(
-    batch_size = 1 ,
+    batch_size = 2,
     dataloader=True,
-    # iterations = 60_000,
-    # coarse_iterations = 7000,
-    # densify_until_iter = 15_000,
-    # opacity_reset_interval = 20000,
+    iterations = 60_000,
+    coarse_iterations = 7000,
+    densify_until_iter = 15_000,
+    opacity_reset_interval = 20000,
 
-    iterations = 15000,
-    coarse_iterations = 3000,
-    densify_until_iter = 10_000,
+   
     # opacity_reset_interval = 60000,
     opacity_threshold_coarse = 0.005,
     opacity_threshold_fine_init = 0.005,
