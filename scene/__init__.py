@@ -35,8 +35,11 @@ class Scene:
         if load_iteration:
             if load_iteration == -1:
                 self.loaded_iter = searchForMaxIteration(os.path.join(self.model_path, "point_cloud"))
+                load_iteration = self.loaded_iter
             else:
                 self.loaded_iter = load_iteration
+            
+        if  load_iteration and load_iteration > 0:
             print("Loading trained model at iteration {}".format(self.loaded_iter))
 
         self.train_cameras = {}
@@ -92,13 +95,14 @@ class Scene:
         xyz_min = scene_info.point_cloud.points.min(axis=0)
         self.gaussians._deformation.deformation_net.grid.set_aabb(xyz_max,xyz_min)
         if self.loaded_iter:
+                
             self.gaussians.load_ply(os.path.join(self.model_path,
                                                            "point_cloud",
-                                                           "iteration_" + str(self.loaded_iter),
+                                                           "fine_iteration_" + str(self.loaded_iter),
                                                            "point_cloud.ply"))
             self.gaussians.load_model(os.path.join(self.model_path,
                                                     "point_cloud",
-                                                    "iteration_" + str(self.loaded_iter),
+                                                    "fine_iteration_" + str(self.loaded_iter),
                                                    ))
         # elif load_coarse:
         #     self.gaussians.load_ply(os.path.join(self.model_path,
@@ -118,7 +122,7 @@ class Scene:
             point_cloud_path = os.path.join(self.model_path, "point_cloud/coarse_iteration_{}".format(iteration))
 
         else:
-            point_cloud_path = os.path.join(self.model_path, "point_cloud/iteration_{}".format(iteration))
+            point_cloud_path = os.path.join(self.model_path, "point_cloud/fine_iteration_{}".format(iteration))
         self.gaussians.save_ply(os.path.join(point_cloud_path, "point_cloud.ply"))
         self.gaussians.save_deformation(point_cloud_path)
     def getTrainCameras(self, scale=1.0):

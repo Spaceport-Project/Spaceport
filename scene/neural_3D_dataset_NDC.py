@@ -90,7 +90,7 @@ def viewmatrix(z, up, pos):
     vec0 = normalize(np.cross(vec1_avg, vec2))
     vec1 = normalize(np.cross(vec2, vec0))
     m = np.eye(4)
-    m[:3] = np.stack([-vec0, vec1, vec2, pos], 1)
+    m[:3] = np.stack([vec0, vec1, vec2, pos], 1)
     return m
 
 
@@ -225,13 +225,20 @@ class Neural3D_NDC_Dataset(Dataset):
         eval_index=0,
         sphere_scale=1.0,
     ):
+        cam01_images_fold = os.path.join(datadir,"cam01","images")
+        cam01_images = [file for file in os.listdir(cam01_images_fold) if file.endswith(".png") or file.endswith(".jpg") ]
+        self.len_images = len(cam01_images)
+        img = Image.open(os.path.join(cam01_images_fold,cam01_images[0]))
+
+
         self.img_wh = (
-            int(1352 / downsample),
-            int(1014 / downsample),
-        )  # According to the neural 3D paper, the default resolution is 1024x768
+           img.size[0], # int(1352 / downsample),
+           img.size[1], # int(1014 / downsample),
+        ) 
+      
         self.root_dir = datadir
         self.split = split
-        self.downsample = 2704 / self.img_wh[0]
+        self.downsample = downsample 
         self.is_stack = is_stack
         self.N_vis = N_vis
         self.time_scale = time_scale
@@ -270,16 +277,16 @@ class Neural3D_NDC_Dataset(Dataset):
         focal = focal / self.downsample
         self.focal = [focal, focal]
         poses = np.concatenate([poses[..., 1:2], -poses[..., :1], poses[..., 2:4]], -1)
-        poses, _ = center_poses(
-            poses, self.blender2opencv
-        )  # Re-center poses so that the average is near the center.
+        # poses, _ = center_poses(
+        #     poses, self.blender2opencv
+        # )  # Re-center poses so that the average is near the center.
 
-        near_original = self.near_fars.min()
-        scale_factor = near_original * 0.75
-        self.near_fars /= (
-            scale_factor  # rescale nearest plane so that it is at z = 4/3.
-        )
-        poses[..., 3] /= scale_factor
+        # near_original = self.near_fars.min()
+        # scale_factor = near_original * 0.75
+        # self.near_fars /= (
+        #     scale_factor  # rescale nearest plane so that it is at z = 4/3.
+        # )
+        # poses[..., 3] /= scale_factor
 
         # Sample N_views poses for validation - NeRF-like camera trajectory.
         N_views = 120
@@ -306,7 +313,7 @@ class Neural3D_NDC_Dataset(Dataset):
         image_times = []
         N_cams = 0
         N_time = 0
-        countss = 300
+        countss = self.len_images
         for index, video_path in enumerate(videos):
             
             if index == self.eval_index:

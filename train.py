@@ -37,14 +37,38 @@ try:
 except ImportError:
     TENSORBOARD_FOUND = False
 def scene_reconstruction(dataset, opt, hyper, pipe, testing_iterations, saving_iterations, 
-                         checkpoint_iterations, checkpoint, debug_from,
+                         loaded_iter, checkpoint, debug_from,
                          gaussians, scene, stage, tb_writer, train_iter,timer):
     first_iter = 0
+    # if not scene.loaded_iter:
+    #     first_iter = 0
+    # else:
+    #     first_iter = scene.loaded_iter
+    # if checkpoint or loaded_iter:
+    #     # breakpoint()
+    #     if stage == "coarse" and stage not in checkpoint:
+    #         print("start from fine stage, skip coarse stage.")
+    #         # process is in the coarse stage, but start from fine stage
+    #         return
+    #     if stage in checkpoint: 
+    #         (model_params, first_iter) = torch.load(checkpoint)
+    #         gaussians.restore(model_params, opt)
+    if  loaded_iter:
+        if loaded_iter > 0:
+        # breakpoint()
+            if stage == "coarse" :
+                print("start from fine stage")
+                # process is in the coarse stage, but start from fine stage
+                return 
+            else:
+                checkpoint = os.path.join(scene.model_path, "point_cloud", f'{stage}_iteration_{loaded_iter}', "chkpnt.pth")
+                (model_params, first_iter) = torch.load(checkpoint)
+                gaussians.restore(model_params, opt)
 
     gaussians.training_setup(opt)
-    if checkpoint:
-        (model_params, first_iter) = torch.load(checkpoint)
-        gaussians.restore(model_params, opt)
+    # if checkpoint:
+    #     (model_params, first_iter) = torch.load(checkpoint)
+    #     gaussians.restore(model_params, opt)
 
     bg_color = [1, 1, 1] if dataset.white_background else [0, 0, 0]
     background = torch.tensor(bg_color, dtype=torch.float32, device="cuda")
@@ -171,6 +195,8 @@ def scene_reconstruction(dataset, opt, hyper, pipe, testing_iterations, saving_i
             if (iteration in saving_iterations):
                 print("\n[ITER {}] Saving Gaussians".format(iteration))
                 scene.save(iteration, stage)
+                checkpoint_path = os.path.join(scene.model_path, "point_cloud", f'{stage}_iteration_{iteration}', "chkpnt.pth")
+                torch.save((gaussians.capture(), iteration), checkpoint_path)
             if dataset.render_process:
                 if (iteration < 1000 and iteration % 10 == 1) \
                     or (iteration < 3000 and iteration % 50 == 1) \
@@ -212,23 +238,35 @@ def scene_reconstruction(dataset, opt, hyper, pipe, testing_iterations, saving_i
                 gaussians.optimizer.step()
                 gaussians.optimizer.zero_grad(set_to_none = True)
 
-            if (iteration in checkpoint_iterations):
-                print("\n[ITER {}] Saving Checkpoint".format(iteration))
-                torch.save((gaussians.capture(), iteration), scene.model_path + "/chkpnt" + str(iteration) + ".pth")
-def training(dataset, hyper, opt, pipe, testing_iterations, saving_iterations, checkpoint_iterations, checkpoint, debug_from, expname):
+            # if (iteration in checkpoint_iterations):
+                # print("\n[ITER {}] Saving Checkpoint".format(iteration))
+                # os.makedirs(os.path.join(scene.model_path, stage), exist_ok=True)
+                # torch.save((gaussians.capture(), iteration), os.path.join(scene.model_path, stage, "chkpnt_" + str(iteration) + ".pth"))
+def training(dataset, hyper, opt, pipe, testing_iterations, saving_iterations, loaded_iter, checkpoint, debug_from, expname):
     # first_iter = 0
     tb_writer = prepare_output_and_logger(expname)
     gaussians = GaussianModel(dataset.sh_degree, hyper)
     dataset.model_path = args.model_path
     timer = Timer()
-    scene = Scene(dataset, gaussians, load_coarse=None)
+    scene = Scene(dataset, gaussians, load_coarse=None, load_iteration= loaded_iter)
+
     timer.start()
     scene_reconstruction(dataset, opt, hyper, pipe, testing_iterations, saving_iterations,
-                             checkpoint_iterations, checkpoint, debug_from,
+                             scene.loaded_iter, checkpoint, debug_from,
                              gaussians, scene, "coarse", tb_writer, opt.coarse_iterations,timer)
     scene_reconstruction(dataset, opt, hyper, pipe, testing_iterations, saving_iterations,
-                         checkpoint_iterations, checkpoint, debug_from,
+                         scene.loaded_iter, checkpoint, debug_from,
                          gaussians, scene, "fine", tb_writer, opt.iterations,timer)
+    
+    # scene = Scene(dataset, gaussians, load_coarse=None, load_iteration=-1)
+    # timer.start()
+    # if not scene.loaded_iter:
+    #     scene_reconstruction(dataset, opt, hyper, pipe, testing_iterations, saving_iterations,
+    #                         checkpoint_iterations, checkpoint, debug_from,
+    #                         gaussians, scene, "coarse", tb_writer, opt.coarse_iterations,timer)
+    # scene_reconstruction(dataset, opt, hyper, pipe, testing_iterations, saving_iterations,
+    #                      checkpoint_iterations, checkpoint, debug_from,
+    #                      gaussians, scene, "fine", tb_writer, opt.iterations,timer)
 
 def prepare_output_and_logger(expname):    
     if not args.model_path:
@@ -315,9 +353,10 @@ if __name__ == "__main__":
     parser.add_argument('--debug_from', type=int, default=-1)
     parser.add_argument('--detect_anomaly', action='store_true', default=False)
     parser.add_argument("--test_iterations", nargs="+", type=int, default=[i*500 for i in range(0,120)])
-    parser.add_argument("--save_iterations", nargs="+", type=int, default=[2000, 3000, 7_000, 8000, 9000, 14000, 20000, 30_000,45000,60000])
+    parser.add_argument("--save_iterations", nargs="+", type=int, default=[1000, 2000, 7_000, 8000, 9000, 14000, 20000, 25000, 30_000, 35_000, 40000, 45000, 50000, 55000, 60000])
     parser.add_argument("--quiet", action="store_true")
-    parser.add_argument("--checkpoint_iterations", nargs="+", type=int, default=[])
+    # parser.add_argument("--checkpoint_iterations", nargs="+", type=int, default=[1000, 2000, 7_000, 8000, 9000, 14000, 20000, 25000, 30_000, 35_000, 40000, 45000, 50000, 55000, 60000])
+    parser.add_argument("--loaded_iter",  type=int, default = -1)
     parser.add_argument("--start_checkpoint", type=str, default = None)
     parser.add_argument("--expname", type=str, default = "")
     parser.add_argument("--configs", type=str, default = "")
@@ -337,7 +376,7 @@ if __name__ == "__main__":
     # Start GUI server, configure and run training
     network_gui.init(args.ip, args.port)
     torch.autograd.set_detect_anomaly(args.detect_anomaly)
-    training(lp.extract(args), hp.extract(args), op.extract(args), pp.extract(args), args.test_iterations, args.save_iterations, args.checkpoint_iterations, args.start_checkpoint, args.debug_from, args.expname)
+    training(lp.extract(args), hp.extract(args), op.extract(args), pp.extract(args), args.test_iterations, args.save_iterations, args.loaded_iter, args.start_checkpoint, args.debug_from, args.expname)
 
     # All done
     print("\nTraining complete.")

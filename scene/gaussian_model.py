@@ -86,8 +86,8 @@ class GaussianModel:
     def restore(self, model_args, training_args):
         (self.active_sh_degree, 
         self._xyz, 
-        self._deformation_table,
-        self._deformation,
+        _, # #self._deformation_table,
+        _, #self._deformation,
         # self.grid,
         self._features_dc, 
         self._features_rest,
