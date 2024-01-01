@@ -24,7 +24,7 @@ class Scene:
 
     gaussians : GaussianModel
 
-    def __init__(self, args : ModelParams, gaussians : GaussianModel, load_iteration=None, shuffle=True, resolution_scales=[1.0], load_coarse=False):
+    def __init__(self, args : ModelParams, gaussians : GaussianModel, load_iteration=None, shuffle=True, resolution_scales=[1.0], load_coarse=False, skip_grid_render=False):
         """b
         :param path: Path to colmap scene main folder.
         """
@@ -51,9 +51,11 @@ class Scene:
             print("Found transforms_train.json file, assuming Blender data set!")
             scene_info = sceneLoadTypeCallbacks["Blender"](args.source_path, args.white_background, args.eval)
         elif os.path.exists(os.path.join(args.source_path, "poses_bounds.npy")):
-            scene_info = sceneLoadTypeCallbacks["dynerf"](args.source_path, args.white_background, args.eval)
+            scene_info = sceneLoadTypeCallbacks["dynerf"](args.source_path, args.white_background, args.eval, skip_grid_render)
         elif os.path.exists(os.path.join(args.source_path,"dataset.json")):
             scene_info = sceneLoadTypeCallbacks["nerfies"](args.source_path, False, args.eval)
+        # elif os.path.exists(os.path.join(args.source_path,"poses_bounds_spaceport.npy")):
+        #     scene_info = sceneLoadTypeCallbacks["spaceport"](args.source_path, args.white_background, args.eval)    
         else:
             assert False, "Could not recognize scene type!"
         self.maxtime = scene_info.maxtime
@@ -90,6 +92,7 @@ class Scene:
         print("Loading Test Cameras")
         self.test_camera = FourDGSdataset(scene_info.test_cameras, args)
         print("Loading Video Cameras")
+        
         self.video_camera = cameraList_from_camInfos(scene_info.video_cameras,-1,args)
         xyz_max = scene_info.point_cloud.points.max(axis=0)
         xyz_min = scene_info.point_cloud.points.min(axis=0)

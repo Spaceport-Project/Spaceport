@@ -38,6 +38,7 @@ def cameraList_from_camInfos(cam_infos, resolution_scale, args):
     camera_list = []
 
     for id, c in enumerate(cam_infos):
+        # print(f"index:{id}, c: {c.image_name}")
         camera_list.append(loadCam(args, id, c, resolution_scale))
 
     return camera_list

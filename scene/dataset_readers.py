@@ -18,6 +18,7 @@ from scene.colmap_loader import read_extrinsics_text, read_intrinsics_text, qvec
 from scene.hyper_loader import Load_hyper_data, format_hyper_data
 import torchvision.transforms as transforms
 import copy
+import plyfile
 from utils.graphics_utils import getWorld2View2, focal2fov, fov2focal
 import numpy as np
 import torch
@@ -414,12 +415,12 @@ def format_render_poses(poses,data_infos):
                             time = time))
     return cameras
 
-def readdynerfInfo(datadir,use_bg_points,eval):
+def readdynerfInfo(datadir,use_bg_points,eval, skip_grid_render):
     # loading all the data follow hexplane format
     # ply_path = os.path.join(datadir, "points3d.ply")
     ply_path = os.path.join(datadir, "point_cloud_downsampled.ply")
     from scene.neural_3D_dataset_NDC import Neural3D_NDC_Dataset
-    print("Loading data  for dynerf from: ", datadir)
+    print("Loading data for dynerf from: ", datadir)
     train_dataset = Neural3D_NDC_Dataset(
     datadir,
     "train",
@@ -428,6 +429,7 @@ def readdynerfInfo(datadir,use_bg_points,eval):
     scene_bbox_min=[-2.5, -2.0, -1.0],
     scene_bbox_max=[2.5, 2.0, 1.0],
     eval_index=0,
+    
         )    
     test_dataset = Neural3D_NDC_Dataset(
     datadir,
@@ -437,6 +439,7 @@ def readdynerfInfo(datadir,use_bg_points,eval):
     scene_bbox_min=[-2.5, -2.0, -1.0],
     scene_bbox_max=[2.5, 2.0, 1.0],
     eval_index=0,
+    skip_grid_render = skip_grid_render
         )
   
 
@@ -447,7 +450,6 @@ def readdynerfInfo(datadir,use_bg_points,eval):
     val_cam_infos = format_render_poses(test_dataset.val_poses,test_dataset)
     nerf_normalization = getNerfppNorm(train_cam_infos)
 
-    # xyz = np.load
     pcd = fetchPly(ply_path)
     print("origin points,",pcd.points.shape[0])
     
@@ -468,5 +470,7 @@ sceneLoadTypeCallbacks = {
     "Colmap": readColmapSceneInfo,
     "Blender" : readNerfSyntheticInfo,
     "dynerf" : readdynerfInfo,
-    "nerfies": readHyperDataInfos,  # NeRFies & HyperNeRF dataset proposed by [https://github.com/google/hypernerf/releases/tag/v0.1]
+    "nerfies": readHyperDataInfos  # NeRFies & HyperNeRF dataset proposed by [https://github.com/google/hypernerf/releases/tag/v0.1]
+    # "spaceport": readSpaceportInfo
+
 }

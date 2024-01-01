@@ -8,8 +8,11 @@
 #
 # For inquiries contact  george.drettakis@inria.fr
 #
+import gc
 import imageio
 import numpy as np
+import sys
+np.set_printoptions(threshold=sys.maxsize)
 import torch
 from scene import Scene
 import os
@@ -23,7 +26,72 @@ from argparse import ArgumentParser
 from arguments import ModelParams, PipelineParams, get_combined_args, ModelHiddenParams
 from gaussian_renderer import GaussianModel
 from time import time
+import threading
+import concurrent.futures
+def multithread_write(image_list, path):
+    executor = concurrent.futures.ThreadPoolExecutor(max_workers=None)
+    def write_image(image, count, path):
+        try:
+            torchvision.utils.save_image(image, os.path.join(path, '{0:05d}'.format(count) + ".png"))
+            return count, True
+        except:
+            return count, False
+        
+    tasks = []
+    for index, image in enumerate(image_list):
+        tasks.append(executor.submit(write_image, image, index, path))
+    executor.shutdown()
+    for index, status in enumerate(tasks):
+        if status == False:
+            write_image(image_list[index], index, path)
 to8b = lambda x : (255*np.clip(x.cpu().numpy(),0,1)).astype(np.uint8)
+
+def render_set_all(model_path, name, iteration, views, gaussians, pipeline, background, num_frames):
+    render_path = os.path.join(model_path, name, "ours_{}".format(iteration), "renders")
+    gts_path = os.path.join(model_path, name, "ours_{}".format(iteration), "gt")
+
+    makedirs(render_path, exist_ok=True)
+    makedirs(gts_path, exist_ok=True)
+ 
+    cnt=0
+    for view in tqdm(views, desc="Rendering progress"):
+        render_images = []
+        gt_list = []
+        gt_list2 = []
+        render_list = []
+        for idx in tqdm(range(num_frames)):
+        # for idx, view in enumerate(tqdm(range(300), desc="Rendering progress")):
+            if idx == 0:time1 = time()
+            view.time = idx/num_frames
+            # print(f"views[{idx}]: {view.image_name}, {view.R}")
+            rendering = render(view, gaussians, pipeline, background)["render"]
+            # rendering = render(view, gaussians, pipeline, background)["render"]
+            # torchvision.utils.save_image(rendering, os.path.join(render_path, '{0:05d}'.format(idx) + ".png"))
+            render_images.append(to8b(rendering).transpose(1,2,0))
+            # print(to8b(rendering).shape)
+            render_list.append(rendering)
+            if name in ["train", "test"]:
+                gt_list2.append(to8b(view.original_image).transpose(1,2,0))
+                gt = view.original_image[0:3, :, :]
+                # torchvision.utils.save_image(gt, os.path.join(gts_path, '{0:05d}'.format(idx) + ".png"))
+            
+                gt_list.append(gt)
+        time2=time()
+        print("FPS:",(len(views)-1)/(time2-time1))
+        count = 0
+        print("writing training images.")
+        if len(gt_list) != 0:
+            for image in tqdm(gt_list):
+                torchvision.utils.save_image(image, os.path.join(gts_path, '{0:05d}'.format(count) + ".png"))
+                count+=1
+        count = 0
+       
+        imageio.mimwrite(os.path.join(model_path, name, "ours_{}".format(iteration), f'video_rgb_{cnt}.mp4'), render_images, fps=30, quality=8)
+        cnt+=1
+     
+        torch.cuda.empty_cache()
+
+
 def render_set(model_path, name, iteration, views, gaussians, pipeline, background):
     render_path = os.path.join(model_path, name, "ours_{}".format(iteration), "renders")
     gts_path = os.path.join(model_path, name, "ours_{}".format(iteration), "gt")
@@ -32,50 +100,66 @@ def render_set(model_path, name, iteration, views, gaussians, pipeline, backgrou
     makedirs(gts_path, exist_ok=True)
     render_images = []
     gt_list = []
+    gt_list2 = []
     render_list = []
-    
+   
     for idx, view in enumerate(tqdm(views, desc="Rendering progress")):
         if idx == 0:time1 = time()
+        # print(f"views[{idx}]: {view.image_name}, {view.R}")
         rendering = render(view, gaussians, pipeline, background)["render"]
         # torchvision.utils.save_image(rendering, os.path.join(render_path, '{0:05d}'.format(idx) + ".png"))
         render_images.append(to8b(rendering).transpose(1,2,0))
         # print(to8b(rendering).shape)
         render_list.append(rendering)
         if name in ["train", "test"]:
+            gt_list2.append(to8b(view.original_image).transpose(1,2,0))
             gt = view.original_image[0:3, :, :]
             # torchvision.utils.save_image(gt, os.path.join(gts_path, '{0:05d}'.format(idx) + ".png"))
+           
             gt_list.append(gt)
     time2=time()
     print("FPS:",(len(views)-1)/(time2-time1))
-    count = 0
-    print("writing training images.")
-    if len(gt_list) != 0:
-        for image in tqdm(gt_list):
-            torchvision.utils.save_image(image, os.path.join(gts_path, '{0:05d}'.format(count) + ".png"))
-            count+=1
-    count = 0
-    print("writing rendering images.")
-    if len(render_list) != 0:
-        for image in tqdm(render_list):
-            torchvision.utils.save_image(image, os.path.join(render_path, '{0:05d}'.format(count) + ".png"))
-            count +=1
+    # count = 0
+    # print("writing training images.")
+    # if len(gt_list) != 0:
+    #     for image in tqdm(gt_list):
+    #         torchvision.utils.save_image(image, os.path.join(gts_path, '{0:05d}'.format(count) + ".png"))
+    #         count+=1
+    # count = 0
+    # print("writing rendering images.")
+    # if len(render_list) != 0:
+    #     for image in tqdm(render_list):
+    #         torchvision.utils.save_image(image, os.path.join(render_path, '{0:05d}'.format(count) + ".png"))
+    #         count +=1
+    # print("writing training images.")
+
+    multithread_write(gt_list, gts_path)
+    # print("writing rendering images.")
+
+    multithread_write(render_list, render_path)
     
     imageio.mimwrite(os.path.join(model_path, name, "ours_{}".format(iteration), 'video_rgb.mp4'), render_images, fps=30, quality=8)
-def render_sets(dataset : ModelParams, hyperparam, iteration : int, pipeline : PipelineParams, skip_train : bool, skip_test : bool, skip_video: bool):
+    # imageio.mimwrite(os.path.join(model_path, name, "ours_{}".format(iteration), 'video_rgb_gt.mp4'), gt_list2, fps=30, quality=8)
+
+def render_sets(dataset : ModelParams, hyperparam, iteration : int, pipeline : PipelineParams, skip_train : bool, skip_test : bool, skip_video: bool, skip_grid_render:bool):
     with torch.no_grad():
         gaussians = GaussianModel(dataset.sh_degree, hyperparam)
-        scene = Scene(dataset, gaussians, load_iteration=iteration, shuffle=False)
+        scene = Scene(dataset, gaussians, load_iteration=iteration, shuffle=False, skip_grid_render=skip_grid_render)
 
         bg_color = [1,1,1] if dataset.white_background else [0, 0, 0]
         background = torch.tensor(bg_color, dtype=torch.float32, device="cuda")
 
         if not skip_train:
             render_set(dataset.model_path, "train", scene.loaded_iter, scene.getTrainCameras(), gaussians, pipeline, background)
-
         if not skip_test:
             render_set(dataset.model_path, "test", scene.loaded_iter, scene.getTestCameras(), gaussians, pipeline, background)
         if not skip_video:
-            render_set(dataset.model_path,"video",scene.loaded_iter,scene.getVideoCameras(),gaussians,pipeline,background)
+            # render_set(dataset.model_path,"video",scene.loaded_iter,scene.getVideoCameras(),gaussians,pipeline,background)
+            if not skip_grid_render:
+                render_set_all(dataset.model_path,"video",scene.loaded_iter,scene.getVideoCameras(),gaussians, pipeline, background, num_frames= scene.maxtime)
+            else:
+                render_set(dataset.model_path,"video",scene.loaded_iter,scene.getVideoCameras(),gaussians,pipeline,background)
+
 if __name__ == "__main__":
     # Set up command line argument parser
     parser = ArgumentParser(description="Testing script parameters")
@@ -88,6 +172,7 @@ if __name__ == "__main__":
     parser.add_argument("--quiet", action="store_true")
     parser.add_argument("--skip_video", action="store_true")
     parser.add_argument("--configs", type=str)
+    parser.add_argument("--skip_grid_render", action="store_true")
     args = get_combined_args(parser)
     print("Rendering " , args.model_path)
     if args.configs:
@@ -98,4 +183,4 @@ if __name__ == "__main__":
     # Initialize system state (RNG)
     safe_state(args.quiet)
 
-    render_sets(model.extract(args), hyperparam.extract(args), args.iteration, pipeline.extract(args), args.skip_train, args.skip_test, args.skip_video)
+    render_sets(model.extract(args), hyperparam.extract(args), args.iteration, pipeline.extract(args), args.skip_train, args.skip_test, args.skip_video, args.skip_grid_render)

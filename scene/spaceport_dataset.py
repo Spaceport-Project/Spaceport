@@ -10,7 +10,6 @@ from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms as T
 from tqdm import tqdm
-from scipy.spatial.transform import Rotation as Rot
 
 
 def normalize(v):
@@ -92,80 +91,37 @@ def viewmatrix(z, up, pos):
     vec2 = normalize(z)
     vec1_avg = up
     vec0 = normalize(np.cross(vec1_avg, vec2))
-   
+    #vec0 = normalize(np.cross(vec2, vec1_avg))
+    # pos[0] = -1*pos[2]
+    # pos[2] = -1*pos[0]
     vec1 = normalize(np.cross(vec2, vec0))
     m = np.eye(4)
     m[:3] = np.stack([vec0, vec1, vec2, pos], 1)
     return m
 
 
-
-def viewmatrix2(z, up, pos):
-    vec2 = normalize(z)
-    vec1_avg = up
-    vec0 = normalize(np.cross(vec1_avg, vec2))
-   
-    vec1 = normalize(np.cross(vec2, vec0))
-    cw = np.stack([vec0, vec1, vec2])
-    r = Rot.from_euler('x', 180,  degrees=True)
-    cw = np.matmul(r.as_matrix(), cw)
-    pos = np.matmul(-pos, cw)
-
-
-    m = np.eye(4)
-    m[:3,:3] = cw 
-    m[:3,3] = pos
-    return m
-
-    # vec2 = normalize(z)
-    # vec1_avg = up
-    # vec0 = normalize(np.cross(vec1_avg, vec2))
-    # vec1 = normalize(np.cross(vec2, vec0))
-    # m = np.eye(4)
-    # m[:3] = np.stack([-vec0, vec1, vec2, pos], 1)
-    # return m
-
-def get_grid(near_fars):
-    """
-    Generate a set of poses using NeRF's spiral camera trajectory as validation poses.
-    """
-    # center pose
-    # c2w = average_poses(c2ws_all)
-    c2w = np.eye(4)
-    
-    r = Rot.from_euler('yz', (30, 5),  degrees=True)
-    #print(r.as_matrix())
-    c2w_r = np.matmul(r.as_matrix(), c2w[:3,:3])
-    up = c2w_r[:3,1]
-    z = c2w_r[:3,2]
-   
-    render_poses = render_grid(
-        z, up
-    )
-    return np.stack(render_poses)
-
-def render_grid(z1, up):
+def render_grid(c2w, up, focal):
     render_poses = []
     GRID_SIZE_X = 10
     GRID_SIZE_Z = 10
-    # min_x, max_x = -1.0 , 1.0
-    # min_z, max_z = -2., 0.
-    min_x, max_x = -2 , 3
-    min_z, max_z = 0., 3.
-
+    min_x, max_x = -1.0 , 1.0
+    min_z, max_z = -0.8, 0.5
     step_x = (max_x - min_x)/GRID_SIZE_X
     step_z = (max_z - min_z)/GRID_SIZE_Z
     for j, z in enumerate(np.arange(max_z, min_z , -step_z)):
         for i, x in enumerate(np.arange(max_x, min_x, -step_x)):
             c = np.array([x, 0, z])
-            
+           
+
+            z_tmp = np.dot(c2w[:3, :4], np.array([0, 0, -focal, 1.0]))
             # z1 = normalize(c - z_tmp)
-            # z1 = np.array([0.0, 0.0, 1.0])
-            # z1 = c2w[:3,2]
+            z1 = np.array([0.0, 0.0, 1.0])
+            render_poses.append(viewmatrix(z1, up, c))
 
-            render_poses.append(viewmatrix2(z1, up, c))
+            
 
-     
+
+ 
     return render_poses
 
 
@@ -260,7 +216,30 @@ def process_videos(videos, skip_index, img_wh, downsample, transform, num_worker
                 current_index += 1
     return all_imgs
 
+def get_grid(near_fars):
+    """
+    Generate a set of poses using NeRF's spiral camera trajectory as validation poses.
+    """
+    # center pose
+    # c2w = average_poses(c2ws_all)
+    c2w = np.eye(4)
+    # Get average pose
+    # c2ws_all_tmp = c2ws_all[:, :3, 1]
+    up = np.array([0.0,1.0,0.0])
 
+    # Find a reasonable "focus depth" for this dataset
+    dt = 0.75
+    close_depth, inf_depth = near_fars.min() * 0.9, near_fars.max() * 5.0
+    focal = 1.0 / ((1.0 - dt) / close_depth + dt / inf_depth)
+
+    # Get radii for spiral path
+    # zdelta = near_fars.min() * 0.2
+    # tt = c2ws_all[:, :3, 3]
+    # rads = np.percentile(np.abs(tt), 90, 0) * rads_scale
+    render_poses = render_grid(
+        c2w, up,  focal
+    )
+    return np.stack(render_poses)
 
 
 def get_spiral(c2ws_all, near_fars, rads_scale=1.0, N_views=120):
@@ -294,7 +273,7 @@ def load_cam_poses(path):
     
     return np.array(data_in["cam_poses"])
 
-class Neural3D_NDC_Dataset(Dataset):
+class SpaceportDataset(Dataset):
     def __init__(
         self,
         datadir,
@@ -311,27 +290,26 @@ class Neural3D_NDC_Dataset(Dataset):
         eval_step=1,
         eval_index=0,
         sphere_scale=1.0,
-        skip_grid_render=False
-    ):
-        cam01_images_fold = os.path.join(datadir,"cam01","images")
-        cam01_images = [file for file in os.listdir(cam01_images_fold) if file.endswith(".png") or file.endswith(".jpg") ]
-        self.len_images = len(cam01_images)
-        img = Image.open(os.path.join(cam01_images_fold,cam01_images[0]))
-
-
+    ):  
+        # List images in cam00/images folder relative the datadir and get image size.
+        cam00_images = glob.glob(os.path.join(datadir, "cam00", "images", "*.jpg"))
+        cam00_images = sorted(cam00_images)
+        print(f"cam00_images: {len(cam00_images)} {datadir}")
+        img = Image.open(cam00_images[0])
         self.img_wh = (
-           img.size[0], # int(1352 / downsample),
-           img.size[1], # int(1014 / downsample),
+            int(img.size[0] / downsample),
+            int(img.size[1] / downsample)
         ) 
-      
+        print("Inside SpaceportDataset")
+        print(f"image size: {self.img_wh}")
         self.root_dir = datadir
         self.split = split
-        self.downsample = downsample 
+        #self.downsample = 1909 / self.img_wh[0]
+        self.downsample = downsample
         self.is_stack = is_stack
         self.N_vis = N_vis
         self.time_scale = time_scale
         self.scene_bbox = torch.tensor([scene_bbox_min, scene_bbox_max])
-        self.skip_grid_render = skip_grid_render
 
         self.world_bound_scale = 1.1
         self.bd_factor = bd_factor
@@ -355,7 +333,7 @@ class Neural3D_NDC_Dataset(Dataset):
         Load meta data from the dataset.
         """
         # Read poses and video file paths.
-        poses_arr = np.load(os.path.join(self.root_dir, "poses_bounds.npy"))
+        poses_arr = np.load(os.path.join(self.root_dir, "poses_bounds_spaceport.npy"))
         poses = poses_arr[:, :-2].reshape([-1, 3, 5])  # (N_cams, 3, 5)
         self.near_fars = poses_arr[:, -2:]
         videos = glob.glob(os.path.join(self.root_dir, "cam*"))
@@ -366,24 +344,23 @@ class Neural3D_NDC_Dataset(Dataset):
         focal = focal / self.downsample
         self.focal = [focal, focal]
         poses = np.concatenate([poses[..., 1:2], -poses[..., :1], poses[..., 2:4]], -1)
-        # poses, _ = center_poses(
-        #     poses, self.blender2opencv
-        # )  # Re-center poses so that the average is near the center.
+        poses, _ = center_poses(
+            poses, self.blender2opencv
+        )  # Re-center poses so that the average is near the center.
 
-        # near_original = self.near_fars.min()
-        # scale_factor = near_original * 0.75
-        # self.near_fars /= (
-        #     scale_factor  # rescale nearest plane so that it is at z = 4/3.
-        # )
-        # poses[..., 3] /= scale_factor
+        near_original = self.near_fars.min()
+        scale_factor = near_original * 0.75
+        self.near_fars /= (
+            scale_factor  # rescale nearest plane so that it is at z = 4/3.
+        )
+        poses[..., 3] /= scale_factor
 
         # Sample N_views poses for validation - NeRF-like camera trajectory.
-        N_views = 120
-        if self.skip_grid_render:
-            self.val_poses = get_spiral(poses, self.near_fars, N_views=N_views)
-        else:
-            self.val_poses= get_grid(self.near_fars)
-      
+        N_views = 300
+        # self.val_poses = get_spiral(poses, self.near_fars, N_views=N_views)
+        self.val_poses= get_grid(self.near_fars)
+
+        # self.val_poses = self.directions
         W, H = self.img_wh
         poses_i_train = []
 
@@ -405,7 +382,9 @@ class Neural3D_NDC_Dataset(Dataset):
         image_times = []
         N_cams = 0
         N_time = 0
-        countss = self.len_images
+        cam00_images = glob.glob(os.path.join(self.root_dir, "cam00", "images", "*.jpg"))
+        countss = len(cam00_images)
+        #countss = 201
         for index, video_path in enumerate(videos):
             
             if index == self.eval_index:
@@ -458,7 +437,7 @@ class Neural3D_NDC_Dataset(Dataset):
                 # if self.downsample != 1.0:
                 #     img = video_frame.resize(self.img_wh, Image.LANCZOS)
                 # img.save(os.path.join(image_path,"%04d.png"%count))
-                this_count+=1
+                this_count+=1  
             N_time = len(images_path)
 
                 #     video_data_save[count] = img.permute(1,2,0)
