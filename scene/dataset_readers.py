@@ -19,6 +19,7 @@ from scene.hyper_loader import Load_hyper_data, format_hyper_data
 import torchvision.transforms as transforms
 import copy
 import plyfile
+import plyfile
 from utils.graphics_utils import getWorld2View2, focal2fov, fov2focal
 import numpy as np
 import torch
@@ -29,6 +30,8 @@ from utils.sh_utils import SH2RGB
 from scene.gaussian_model import BasicPointCloud
 from utils.general_utils import PILtoTorch
 from tqdm import tqdm
+from plyfile import PlyData, PlyElement
+
 class CameraInfo(NamedTuple):
     uid: int
     R: np.array
@@ -120,11 +123,39 @@ def readColmapCameras(cam_extrinsics, cam_intrinsics, images_folder):
     return cam_infos
 
 def fetchPly(path):
+    print("Loading point cloud from in fetchply{}".format(path))
     plydata = PlyData.read(path)
     vertices = plydata['vertex']
     positions = np.vstack([vertices['x'], vertices['y'], vertices['z']]).T
     colors = np.vstack([vertices['red'], vertices['green'], vertices['blue']]).T / 255.0
     normals = np.vstack([vertices['nx'], vertices['ny'], vertices['nz']]).T
+    print("Loaded {} points".format(positions.shape[0]))
+    print("Loaded {} colors".format(colors.shape[0]))
+    print("Loaded {} normals".format(normals.shape[0]))
+    pcd = BasicPointCloud(points=positions, colors=colors, normals=normals)
+    print(("pcd type: ", type(pcd)))
+    return pcd
+
+def fetchPly_new(path):
+    print("Loading point cloud from {}".format(path))
+    plydata = PlyData.read(path)
+    vertices = plydata['vertex']
+
+    # Mandatory: positions
+    positions = np.vstack([vertices['x'], vertices['y'], vertices['z']]).T
+
+    # Optional: colors
+    if all(c in vertices.dtype.names for c in ['red', 'green', 'blue']):
+        colors = np.vstack([vertices['red'], vertices['green'], vertices['blue']]).T / 255.0
+    else:
+        colors = np.zeros_like(positions)  # Or any default value
+
+    # Optional: normals
+    if all(n in vertices.dtype.names for n in ['nx', 'ny', 'nz']):
+        normals = np.vstack([vertices['nx'], vertices['ny'], vertices['nz']]).T
+    else:
+        normals = np.zeros_like(positions)  # Or any default value
+
     return BasicPointCloud(points=positions, colors=colors, normals=normals)
 
 def storePly(path, xyz, rgb):
@@ -172,6 +203,7 @@ def readColmapSceneInfo(path, images, eval, llffhold=8):
     ply_path = os.path.join(path, "sparse/0/points3D.ply")
     bin_path = os.path.join(path, "sparse/0/points3D.bin")
     txt_path = os.path.join(path, "sparse/0/points3D.txt")
+    print("Reading point cloud from {}".format(ply_path))
     if not os.path.exists(ply_path):
         print("Converting point3d.bin to .ply, will happen only the first time you open the scene.")
         try:
@@ -181,7 +213,7 @@ def readColmapSceneInfo(path, images, eval, llffhold=8):
         storePly(ply_path, xyz, rgb)
     
     try:
-        pcd = fetchPly(ply_path)
+        pcd = fetchPly_new(ply_path)
         
     except:
         pcd = None

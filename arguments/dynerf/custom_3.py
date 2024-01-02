@@ -12,13 +12,17 @@ ModelHiddenParams = dict(
     plane_tv_weight = 0.0002,
     time_smoothness_weight = 0.001,
     l1_time_planes =  0.001,
+    timebase_pe = 5,
+    scale_rotation_pe = 2,
+    timenet_width = 128,
+    timenet_output = 64,
 
 )
 OptimizationParams = dict(
     batch_size = 2,
     dataloader=True,
     iterations = 60_000,
-    coarse_iterations = 1000,
+    coarse_iterations = 7000,
     densify_until_iter = 15_000,
     opacity_reset_interval = 20000,
 

@@ -187,7 +187,6 @@ def process_video(video_data_save, video_path, img_wh, downsample, transform):
     print(f"Video {video_path} processed.")
     return None
 
-
 # define a function to process all videos
 def process_videos(videos, skip_index, img_wh, downsample, transform, num_workers=1):
     """
