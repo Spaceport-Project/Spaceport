@@ -11,3 +11,4 @@ data
 argument/
 scripts/
 video_player/media
+video_player/examples/*.png

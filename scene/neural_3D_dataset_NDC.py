@@ -6,6 +6,7 @@ import json
 import cv2
 import numpy as np
 import torch
+import copy
 from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms as T
@@ -139,10 +140,60 @@ def get_grid(near_fars):
     up = c2w_r[:3,1]
     z = c2w_r[:3,2]
    
-    render_poses = render_grid(
+    # render_poses = render_grid(
+    #     z, up
+    # )
+    render_poses = render_rot_all(
         z, up
     )
     return np.stack(render_poses)
+
+def render_rot_all(z1, up) :
+    render_poses = []
+
+    render_poses = []
+    GRID_SIZE_X = 6
+    GRID_SIZE_Z = 6
+    # min_x, max_x = -1.0 , 1.0
+    # min_z, max_z = -2., 0.
+    min_x, max_x = -2 , 3
+    min_z, max_z = 0., 3.
+
+    step_x = (max_x - min_x)/GRID_SIZE_X
+    step_z = (max_z - min_z)/GRID_SIZE_Z
+    for j, z in enumerate(np.arange(max_z, min_z , -step_z)):
+        for k, x in enumerate(np.arange(max_x, min_x, -step_x)):
+            pos = np.array([x, 0, z])
+            m = viewmatrix2(z1, up, pos)
+            r = Rot.from_euler('y', -50,  degrees=True)
+            m[:3, :3] = np.dot(r.as_matrix(), m[:3,:3])
+            # m[:3, 3] = -np.matmul(m[:3, :3].T, pos)
+            angle = 20
+            render_poses.append([])
+            for i in range(int(120/angle)):
+                m_i = copy.deepcopy(m)
+                r = Rot.from_euler('y', i*angle,  degrees=True)
+                m_i[:3, :3] = np.dot(r.as_matrix(), m_i[:3,:3])
+                # m_i[:3, 3] = -np.matmul(m_i[:3, :3].T, pos)
+                render_poses[-1].append(m_i)
+   
+    return render_poses
+def render_rot(z1, up) :
+    render_poses = []
+    pos = np.array([0, 0, 1])
+    m = viewmatrix2(z1, up, pos)
+    r = Rot.from_euler('y', -50,  degrees=True)
+    m[:3, :3] = np.matmul(r.as_matrix(), m[:3,:3])
+    m[:3, 3] = -np.matmul(m[:3, :3].T, pos)
+    angle = 20
+    for i in range(int(120/angle)):
+        m_i = copy.deepcopy(m)
+        r = Rot.from_euler('y', i*angle,  degrees=True)
+        m_i[:3, :3] = np.matmul(r.as_matrix(), m_i[:3,:3])
+        m_i[:3, 3] = -np.matmul(m_i[:3, :3].T, pos)
+        render_poses.append(m_i)
+   
+    return render_poses
 
 def render_grid(z1, up):
     render_poses = []

@@ -22,6 +22,7 @@ from os import makedirs
 from gaussian_renderer import render
 import torchvision
 from utils.general_utils import safe_state
+from utils.hugin_panorama import HuginPanorama
 from argparse import ArgumentParser
 from arguments import ModelParams, PipelineParams, get_combined_args, ModelHiddenParams
 from gaussian_renderer import GaussianModel
@@ -44,8 +45,92 @@ def multithread_write(image_list, path):
     for index, status in enumerate(tasks):
         if status == False:
             write_image(image_list[index], index, path)
+
+def multithread_write_all(image_list, path, format ):
+    executor = concurrent.futures.ThreadPoolExecutor(max_workers=None)
+    def write_image(image, count, path):
+        try:
+            # torchvision.utils.save_image(image, os.path.join(path, '{0:05d}'.format(count) + ".png"))
+            torchvision.utils.save_image(image, os.path.join(path, f'{count}' + '.png'))
+            return count, True
+        except:
+            return count, False
+        
+    tasks = []
+    for index, image in enumerate(image_list):
+        tasks.append(executor.submit(write_image, image, f'{format}_{index}', path))
+    executor.shutdown()
+    for index, status in enumerate(tasks):
+        if status == False:
+            write_image(image_list[index], index, path)
+
 to8b = lambda x : (255*np.clip(x.cpu().numpy(),0,1)).astype(np.uint8)
 
+
+def render_set_rot_all(model_path, name, iteration, views, gaussians, pipeline, background, num_frames):
+    render_path = os.path.join(model_path, name, "ours_{}".format(iteration), "renders")
+    gts_path = os.path.join(model_path, name, "ours_{}".format(iteration), "gt")
+
+    makedirs(render_path, exist_ok=True)
+    makedirs(gts_path, exist_ok=True)
+ 
+    cnt=0
+    for idx in tqdm(range(num_frames)):
+        # if idx == 0:
+            # time1 = time()
+
+        for id, view in enumerate(tqdm(views, desc="Rendering progress")):
+            render_images = []
+           
+            render_list = []
+            for sub_id, sub_view in enumerate(view):
+                # render_images = []
+                # gt_list = []
+                # gt_list2 = []
+                # render_list = []
+                
+                    # if idx > 0:
+                    #     break
+                    # if idx == 0:
+                    #     time1 = time()
+                sub_view.time = idx/num_frames
+                # print(f"views[{idx}]: {view.image_name}, {view.R}")
+                rendering = render(sub_view, gaussians, pipeline, background)["render"]
+                # rendering = render(view, gaussians, pipeline, background)["render"]
+                # torchvision.utils.save_image(rendering, os.path.join(render_path, '{0:05d}'.format(idx) + ".png"))
+                render_images.append(to8b(rendering).transpose(1,2,0))
+                # print(to8b(rendering).shape)
+                render_list.append(rendering)
+                # if name in ["train", "test"]:
+                #     gt_list2.append(to8b(sub_view.original_image).transpose(1,2,0))
+                #     gt = sub_view.original_image[0:3, :, :]
+                #     # torchvision.utils.save_image(gt, os.path.join(gts_path, '{0:05d}'.format(idx) + ".png"))
+                
+                #     gt_list.append(gt)
+                    # if idx == 0:
+                    #     torchvision.utils.save_image(rendering, os.path.join(render_path, '{0:05d}'.format(id) + ".png"))
+                # time2=time()
+                # print("FPS:",(len(views)-1)/(time2-time1))
+                # count = 0
+                # print("writing training images.")
+                # if len(gt_list) != 0:
+                #     for image in tqdm(gt_list):
+                #         torchvision.utils.save_image(image, os.path.join(gts_path, '{0:05d}'.format(count) + ".png"))
+                #         count+=1
+            print("writing rendering images.")
+            # if len(render_list) != 0:
+            #     for idx, image in enumerate(tqdm(render_list)):
+            #         torchvision.utils.save_image(image, os.path.join(render_path, '{0}_{1}_{2}'.format(idx, id, sub_id) + ".png"))
+                    
+            multithread_write_all(render_list, render_path, f'{idx}_{id}')
+            list_files = [os.path.abspath(os.path.join(render_path, f'{idx}_{id}_{i}.png')) for i in range(len(render_list))]
+            pano = HuginPanorama(list_files)
+            pano.do_stitch()
+
+                # imageio.mimwrite(os.path.join(model_path, name, "ours_{}".format(iteration), f'video_rgb_{cnt}.mp4'), render_images, fps=30, quality=8)
+                # cnt+=1
+            
+            torch.cuda.empty_cache()
 def render_set_all(model_path, name, iteration, views, gaussians, pipeline, background, num_frames):
     render_path = os.path.join(model_path, name, "ours_{}".format(iteration), "renders")
     gts_path = os.path.join(model_path, name, "ours_{}".format(iteration), "gt")
@@ -54,14 +139,17 @@ def render_set_all(model_path, name, iteration, views, gaussians, pipeline, back
     makedirs(gts_path, exist_ok=True)
  
     cnt=0
-    for view in tqdm(views, desc="Rendering progress"):
+    for id, view in enumerate(tqdm(views, desc="Rendering progress")):
         render_images = []
         gt_list = []
         gt_list2 = []
         render_list = []
         for idx in tqdm(range(num_frames)):
+            if idx > 0:
+                break
         # for idx, view in enumerate(tqdm(range(300), desc="Rendering progress")):
-            if idx == 0:time1 = time()
+            if idx == 0:
+                time1 = time()
             view.time = idx/num_frames
             # print(f"views[{idx}]: {view.image_name}, {view.R}")
             rendering = render(view, gaussians, pipeline, background)["render"]
@@ -76,18 +164,24 @@ def render_set_all(model_path, name, iteration, views, gaussians, pipeline, back
                 # torchvision.utils.save_image(gt, os.path.join(gts_path, '{0:05d}'.format(idx) + ".png"))
             
                 gt_list.append(gt)
+            # if idx == 0:
+            #     torchvision.utils.save_image(rendering, os.path.join(render_path, '{0:05d}'.format(id) + ".png"))
         time2=time()
         print("FPS:",(len(views)-1)/(time2-time1))
-        count = 0
-        print("writing training images.")
-        if len(gt_list) != 0:
-            for image in tqdm(gt_list):
-                torchvision.utils.save_image(image, os.path.join(gts_path, '{0:05d}'.format(count) + ".png"))
-                count+=1
-        count = 0
+        # count = 0
+        # print("writing training images.")
+        # if len(gt_list) != 0:
+        #     for image in tqdm(gt_list):
+        #         torchvision.utils.save_image(image, os.path.join(gts_path, '{0:05d}'.format(count) + ".png"))
+        #         count+=1
+        print("writing rendering images.")
+        if len(render_list) != 0:
+            for idx, image in enumerate(tqdm(render_list)):
+                torchvision.utils.save_image(image, os.path.join(render_path, '{0}_{1}'.format(id, idx) + ".png"))
+             
        
-        imageio.mimwrite(os.path.join(model_path, name, "ours_{}".format(iteration), f'video_rgb_{cnt}.mp4'), render_images, fps=30, quality=8)
-        cnt+=1
+        # imageio.mimwrite(os.path.join(model_path, name, "ours_{}".format(iteration), f'video_rgb_{cnt}.mp4'), render_images, fps=30, quality=8)
+        # cnt+=1
      
         torch.cuda.empty_cache()
 
@@ -156,7 +250,7 @@ def render_sets(dataset : ModelParams, hyperparam, iteration : int, pipeline : P
         if not skip_video:
             # render_set(dataset.model_path,"video",scene.loaded_iter,scene.getVideoCameras(),gaussians,pipeline,background)
             if not skip_grid_render:
-                render_set_all(dataset.model_path,"video",scene.loaded_iter,scene.getVideoCameras(),gaussians, pipeline, background, num_frames= scene.maxtime)
+                render_set_rot_all(dataset.model_path,"video",scene.loaded_iter,scene.getVideoCameras(),gaussians, pipeline, background, num_frames= scene.maxtime)
             else:
                 render_set(dataset.model_path,"video",scene.loaded_iter,scene.getVideoCameras(),gaussians,pipeline,background)
 

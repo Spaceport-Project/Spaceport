@@ -34,6 +34,7 @@ def loadCam(args, id, cam_info, resolution_scale):
                   time = cam_info.time,
 )
 
+
 def cameraList_from_camInfos(cam_infos, resolution_scale, args):
     camera_list = []
 
@@ -43,6 +44,16 @@ def cameraList_from_camInfos(cam_infos, resolution_scale, args):
 
     return camera_list
 
+def cameraList_from_camInfos_all(cam_infos, resolution_scale, args):
+    camera_list = []
+
+    for id, c in enumerate(cam_infos):
+        camera_list.append([])
+        for sub_c in c:
+        # print(f"index:{id}, c: {c.image_name}")
+            camera_list[-1].append(loadCam(args, id, sub_c, resolution_scale))
+
+    return camera_list
 def camera_to_JSON(id, camera : Camera):
     Rt = np.zeros((4, 4))
     Rt[:3, :3] = camera.R.transpose()

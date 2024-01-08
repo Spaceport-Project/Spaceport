@@ -422,6 +422,33 @@ def readHyperDataInfos(datadir,use_bg_points,eval):
                            )
 
     return scene_info
+def format_render_poses_all(poses,data_infos):
+    cameras = []
+    tensor_to_pil = transforms.ToPILImage()
+    len_poses = len(poses)
+    times = [i/len_poses for i in range(len_poses)]
+    image = data_infos[0][0]
+    for idx, p in tqdm(enumerate(poses)):
+        cameras.append([])
+        for sub_idx, sub_p in enumerate(p):
+
+            # image = None
+            image_path = None
+            image_name = f"{idx}"
+            time = times[idx]
+            pose = np.eye(4)
+            pose[:3,:] = sub_p[:3,:]
+            # matrix = np.linalg.inv(np.array(pose))
+            R = pose[:3,:3]
+            R = - R
+            R[:,0] = -R[:,0]
+            T = -pose[:3,3].dot(R)
+            FovX = focal2fov(data_infos.focal[0], image.shape[2])
+            FovY = focal2fov(data_infos.focal[0], image.shape[1])
+            cameras[-1].append(CameraInfo(uid=idx, R=R, T=T, FovY=FovY, FovX=FovX, image=image,
+                                image_path=image_path, image_name=image_name, width=image.shape[2], height=image.shape[1],
+                                time = time))
+    return cameras
 def format_render_poses(poses,data_infos):
     cameras = []
     tensor_to_pil = transforms.ToPILImage()
@@ -446,7 +473,6 @@ def format_render_poses(poses,data_infos):
                             image_path=image_path, image_name=image_name, width=image.shape[2], height=image.shape[1],
                             time = time))
     return cameras
-
 def readdynerfInfo(datadir,use_bg_points,eval, skip_grid_render):
     # loading all the data follow hexplane format
     # ply_path = os.path.join(datadir, "points3d.ply")
@@ -479,7 +505,7 @@ def readdynerfInfo(datadir,use_bg_points,eval, skip_grid_render):
     max_time = len([file for file in os.listdir(os.path.join(datadir,"cam01","images")) if file.endswith(".png") or file.endswith(".jpg") ])
 
     train_cam_infos = format_infos(train_dataset,"train")
-    val_cam_infos = format_render_poses(test_dataset.val_poses,test_dataset)
+    val_cam_infos = format_render_poses_all(test_dataset.val_poses,test_dataset)
     nerf_normalization = getNerfppNorm(train_cam_infos)
 
     pcd = fetchPly(ply_path)

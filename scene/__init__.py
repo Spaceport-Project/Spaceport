@@ -17,7 +17,7 @@ from scene.dataset_readers import sceneLoadTypeCallbacks
 from scene.gaussian_model import GaussianModel
 from scene.dataset import FourDGSdataset
 from arguments import ModelParams
-from utils.camera_utils import cameraList_from_camInfos, camera_to_JSON
+from utils.camera_utils import cameraList_from_camInfos, cameraList_from_camInfos_all, camera_to_JSON
 from torch.utils.data import Dataset
 
 class Scene:
@@ -93,7 +93,8 @@ class Scene:
         self.test_camera = FourDGSdataset(scene_info.test_cameras, args)
         print("Loading Video Cameras")
         
-        self.video_camera = cameraList_from_camInfos(scene_info.video_cameras,-1,args)
+        # self.video_camera = cameraList_from_camInfos(scene_info.video_cameras,-1,args)
+        self.video_camera = cameraList_from_camInfos_all(scene_info.video_cameras,-1,args)
         xyz_max = scene_info.point_cloud.points.max(axis=0)
         xyz_min = scene_info.point_cloud.points.min(axis=0)
         self.gaussians._deformation.deformation_net.grid.set_aabb(xyz_max,xyz_min)
