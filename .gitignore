@@ -7,7 +7,7 @@ diff_rasterization/dist
 tensorboard_3d
 screenshots
 data/
-data
-argument/
-scripts/
 video_player/media
+video_player/examples/*.png
+video_player/examples/*.jpg
+!video_player/examples/spaceport_logo.png
