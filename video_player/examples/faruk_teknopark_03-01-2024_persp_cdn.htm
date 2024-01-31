@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title> Teknopark Demo 03-01-2024</title>
+  
+    <link rel="stylesheet" href="https://d2nu66bxxofnfe.cloudfront.net/demo/src/css/pannellum.css">
+    <link rel="icon" href="./spaceport_logo.png" type="image/png">
+
+    <script type="text/javascript" src="https://cdn.pannellum.org/2.5/pannellum.js"></script>
+
+    <link href="https://d2nu66bxxofnfe.cloudfront.net/demo/src/css/video-js.css" rel="stylesheet"
+      type="text/css">
+    <!-- <script type="text/javascript" src="http://vjs.zencdn.net/5.17.0/video.js"></script> -->
+    <script src="https://vjs.zencdn.net/8.0.4/video.min.js"></script>
+
+    <script src="https://d2nu66bxxofnfe.cloudfront.net/demo/src/js/videojs-pannellum-plugin.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
+    <script src="https://d2nu66bxxofnfe.cloudfront.net/demo/src/js/videojs-playlist.js"></script>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
+    <link href="https://netdna.bootstrapcdn.com/font-awesome/3.2.1/css/font-awesome.css" rel="stylesheet">
+     <style>
+
+        .vjs-has-started .vjs-loading-spinner {
+            display: none !important;
+        }
+
+        
+        body, html {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        }
+
+        .video-container {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        }
+
+        #canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            display:  none;
+        }
+        #panorama {
+        width: 100%;
+        height: 100%;
+        }
+        .icon {
+        
+        position: absolute; 
+        bottom: 70px;
+        right: 70px;
+        cursor: default;
+        }
+
+
+        .arrow {
+            transition: fill 0.3s; /* Smooth transition for the fill property */
+        }
+
+        .arrow:hover {
+            fill: #ff0000; /* Change the fill color to orange when hovered */
+            cursor: pointer; /* Change cursor to a pointer to indicate interactivity */
+        }
+
+        .extra-info {
+            display: none;
+            line-height: 30px;
+            font-size: 12px;
+            position: absolute;
+            top: 0;
+            left: 50px;
+        
+        }
+
+        .info:hover .extra-info {
+            display: block;
+        }
+
+        .info {
+            font-size: 20px;
+            padding-left: 5px;
+            width: 20px;
+            border-radius: 15px;
+            z-index: 2;
+            position: fixed;
+            left: 5%;
+            top: 80%;
+            color: red;
+        }
+
+        .info:hover {
+            background-color: white;
+            padding: 0 0 0 5px;
+            width: 315px;
+            height: 120px;
+            text-align: left !important;
+            z-index: 99;
+        }
+
+
+        .icon {
+        
+        position: absolute; 
+        bottom: 70px;
+        right: 70px;
+        cursor: default;
+        }
+
+
+        .arrow {
+            transition: fill 0.3s; /* Smooth transition for the fill property */
+        }
+
+        .arrow:hover {
+            fill: #ff0000; /* Change the fill color to orange when hovered */
+            cursor: pointer; /* Change cursor to a pointer to indicate interactivity */
+        }
+       
+    </style>
+
+
+
+</head>
+ <body>
+
+    <div class="video-container">
+        <div class="info">
+            <i class="icon-info-sign"></i>
+      
+            <span class="extra-info">
+              Use "I-J-K-L" or buttons on the screen to move through the scene. <br>
+             
+            </span>
+          </div>
+        <video id="panorama" class="video-js vjs-big-play-centered " controls="" preload="auto" autoplay="true" width="1440px" height="720px"
+                crossorigin="anonymous" >
+                
+            <source src="https://d223v4e7dt6i6.cloudfront.net/faruk_teknopark_03-01-2024_v1/output_grid_67.mp4" type="video/mp4" />
+            <!-- <source src="./media/faruk_teknopark_v1/output_grid_16.mp4" type="video/mp4" /> -->
+            <p class="vjs-no-js">
+                To view this video please enable JavaScript, and consider upgrading to
+                a web browser that <a href="http://videojs.com/html5-video-support/"
+                target="_blank">supports HTML5 video</a>
+            </p>
+        </video>
+        <canvas id="canvas" ></canvas>
+        <div class = "icon"  id="svg-container"></div>
+    </div>
+
+ 
+
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    fetch('./arrows.svg')
+        .then(response => response.text())
+        .then(svgData => {
+            document.getElementById('svg-container').innerHTML = svgData;
+
+            // Add click event listeners to individual triangles
+            var right_arrow = document.getElementById('right-arrow');
+            var left_arrow = document.getElementById('left-arrow');
+            var up_arrow = document.getElementById('up-arrow');
+            var down_arrow = document.getElementById('down-arrow');
+            var middle = document.getElementById('middle');
+
+            right_arrow.addEventListener('click', function(event) {
+
+                window.dispatchEvent(new KeyboardEvent('keydown', {'key': 'l'}));
+            });
+
+            left_arrow.addEventListener('click', function() {
+                window.dispatchEvent(new KeyboardEvent('keydown', {'key': 'j'}));
+            })
+
+            up_arrow.addEventListener('click', function() {
+                window.dispatchEvent(new KeyboardEvent('keydown', {'key': 'i'}));
+            });
+
+            down_arrow.addEventListener('click', function() {
+                window.dispatchEvent(new KeyboardEvent('keydown', {'key': 'k'}));
+            });
+            
+            middle.addEventListener('click', function(){
+                // player.pnlmViewer.setPitch(pitch_init, 0);
+                // player.pnlmViewer.setYaw(yaw_init, 0);
+                // player.pnlmViewer.setHfov(hfov_init, 0);
+                index = index_init
+                player.playlist.currentItem(index);
+
+            });
+
+    
+        })
+        .catch(error => console.error(error));
+
+});
+
+const grid_length = 10;
+const grid_width = 10;
+const grid_height = 1;
+const area = grid_length * grid_width;
+const volume = grid_length * grid_width * grid_height;
+var index_init = 30;
+var index= index_init;
+var h = Math.floor(index / area);
+
+
+var basepath = "https://d223v4e7dt6i6.cloudfront.net/faruk_teknopark_03-01-2024_v1";
+
+var player = videojs('panorama');
+
+var list = [];
+for (let i = 0 ; i < volume ; i++) {
+list.push({
+  sources: [{
+    src: basepath + "/output_grid_" + i + ".mp4",
+    type: 'video/mp4'
+  }]});
+
+
+}
+
+player.playlist(list);
+
+
+
+player.playlist.autoadvance(0);
+player.playlist.currentItem(index);
+
+var videoElement =   player.el().querySelector('video');
+var canvas = document.getElementById('canvas');
+//player.requestFullscreen();
+
+player.on('ended', function (){
+    console.log("ended", index)
+   
+    if (index < 0) player.playlist.currentItem(0);
+    player.play();
+
+
+})
+
+
+
+async function customPlaylistTransition(player, ind, time) {
+      // Get the last frame of the current video
+      
+
+    const videoAspectRatio = videoElement.videoWidth/videoElement.videoHeight;
+    const videoClientAspectRatio = videoElement.clientWidth/videoElement.clientHeight;
+    if (videoAspectRatio > videoClientAspectRatio) 
+    {
+        var width = videoElement.clientWidth;
+        var height = width/videoAspectRatio;
+        var left = 0;
+        var top = (videoElement.clientHeight - height)/2;
+    } 
+    else 
+    {
+        
+        var height = videoElement.clientHeight;
+        var width = height * videoAspectRatio;
+        var top = 0;
+        var left = (videoElement.clientWidth - width)/2;
+    }
+
+   
+    canvas.width = videoElement.clientWidth
+    canvas.height = videoElement.clientHeight;
+    var canvasContext = canvas.getContext('2d');
+
+    // player.pause();
+    player.el().style.display = "none";
+    canvas.style.display="block";
+
+    canvasContext.fillStyle = "black";
+    canvasContext.fillRect(0, 0, canvas.width, canvas.height);
+    canvasContext.drawImage(videoElement, left, top, width, height);
+
+    // setTimeout(async function () {
+
+
+        player.playlist.currentItem(ind);
+        setTimeout(()=> {player.currentTime(time);}, 1);
+        await player.play();
+        canvas.style.display="none";
+        player.el().style.display = "block";
+
+
+
+
+
+    // }, 1); 
+
+}
+
+window.addEventListener('keydown', function(event) {
+
+
+  var key = event.key; 
+  console.log(key);
+  var currentTime = player.currentTime();
+  var prev = index;
+  
+  switch (key) {
+      case "j":
+          {               
+              
+              
+            const tmp = index - 1;  
+            index = (tmp + 1) % grid_length == 0 ? index: tmp;
+           
+              
+
+          } 
+              
+          break;
+
+      case "l":
+          {
+           
+               const tmp = index + 1;  
+              index = tmp % grid_length == 0 ? index: tmp;
+          }
+
+          break;
+
+      case "i":
+          {
+            
+              const tmp = index - grid_length;
+              index = tmp < h * area ? index: tmp; 
+             
+             
+          }
+          break;
+
+      case "k":
+          {
+           
+            const tmp = index + grid_length;  
+            index = tmp >= ( h + 1) * area ? index: tmp;
+             
+       
+          }
+
+          break;
+
+      case "u":
+          {
+              h++;
+              const tmp = index + area;
+              if (h < height) index = tmp;
+              else h = height -1;
+              
+          
+          }
+          break;
+
+      case "h":
+          {
+              h--;
+              const tmp = index - area;
+              if (h < 0) h = 0;
+              else index = tmp;
+              
+
+
+          }
+
+          break;
+
+    
+
+      
+      default:
+        return;
+
+
+
+
+  }
+
+   
+    console.log(index);
+    if (prev !== index) {
+        // player.playlist.currentItem(index);
+
+        // setTimeout(()=> {player.currentTime(currentTime);}, 1);
+        customPlaylistTransition(player, index, currentTime);
+
+    }
+
+
+
+ 
+});
+
+window.addEventListener( 'mouseup', function (event){
+
+  
+
+}, false );
+
+window.addEventListener("wheel", (event) =>{
+
+}, false);
+
+
+
+
+ </script>
+    
+ </body>
+
+
+</html>
