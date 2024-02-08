@@ -1,4 +1,4 @@
-#
+
 # Copyright (C) 2023, Inria
 # GRAPHDECO research group, https://team.inria.fr/graphdeco
 # All rights reserved.
@@ -8,6 +8,7 @@
 #
 # For inquiries contact  george.drettakis@inria.fr
 #
+
 import gc
 import imageio
 import numpy as np
@@ -54,7 +55,7 @@ def render_set_all(model_path, name, iteration, views, gaussians, pipeline, back
     makedirs(gts_path, exist_ok=True)
  
     cnt=0
-    for view in tqdm(views, desc="Rendering progress"):
+    for id, view in enumerate(tqdm(views, desc="Rendering progress")):
         render_images = []
         gt_list = []
         gt_list2 = []
@@ -68,6 +69,7 @@ def render_set_all(model_path, name, iteration, views, gaussians, pipeline, back
             # rendering = render(view, gaussians, pipeline, background)["render"]
             # torchvision.utils.save_image(rendering, os.path.join(render_path, '{0:05d}'.format(idx) + ".png"))
             render_images.append(to8b(rendering).transpose(1,2,0))
+            torchvision.utils.save_image(rendering, os.path.join(render_path, f"{id}_{idx}.png"))
             # print(to8b(rendering).shape)
             render_list.append(rendering)
             if name in ["train", "test"]:
@@ -109,8 +111,6 @@ def render_set(model_path, name, iteration, views, gaussians, pipeline, backgrou
         rendering = render(view, gaussians, pipeline, background)["render"]
         # torchvision.utils.save_image(rendering, os.path.join(render_path, '{0:05d}'.format(idx) + ".png"))
         render_images.append(to8b(rendering).transpose(1,2,0))
-        torchvision.utils.save_image(rendering, os.path.join(render_path, f"{idx}.png"))
-
         # print(to8b(rendering).shape)
         render_list.append(rendering)
         if name in ["train", "test"]:
@@ -158,14 +158,16 @@ def render_sets(dataset : ModelParams, hyperparam, iteration : int, pipeline : P
         if not skip_video:
             # render_set(dataset.model_path,"video",scene.loaded_iter,scene.getVideoCameras(),gaussians,pipeline,background)
             if not skip_grid_render:
-                render_set_all(dataset.model_path,"video",scene.loaded_iter,scene.getVideoCameras(), gaussians, pipeline, background, num_frames= scene.maxtime)
+                render_set_all(dataset.model_path,"video",scene.loaded_iter,scene.getVideoCameras(),gaussians, pipeline, background, num_frames= scene.maxtime)
             else:
                 render_set(dataset.model_path,"video",scene.loaded_iter,scene.getVideoCameras(),gaussians,pipeline,background)
 
 if __name__ == "__main__":
     # Set up command line argument parser
     parser = ArgumentParser(description="Testing script parameters")
-    model = ModelParams(parser, sentinel=True)
+
+    model = ModelParams(parser, sentinel=False)
+   
     pipeline = PipelineParams(parser)
     hyperparam = ModelHiddenParams(parser)
     parser.add_argument("--iteration", default=-1, type=int)
@@ -173,10 +175,16 @@ if __name__ == "__main__":
     parser.add_argument("--skip_test", action="store_true")
     parser.add_argument("--quiet", action="store_true")
     parser.add_argument("--skip_video", action="store_true")
-    parser.add_argument("--configs", type=str)
+    parser.add_argument("--configs", type=str, default="arguments/dynerf/default.py")
     parser.add_argument("--skip_grid_render", action="store_true")
+    # parser.add_argument("--model_path", type=str, default= "output/spaceport/13-12-2023/101-150_lum90_bayer_png_30fps_10frm_batch_1")
+
     args = get_combined_args(parser)
-    print("Rendering " , args.model_path)
+    args.source_path = "/home/spaceport/DATA/13-12-23/101-150_lum90_bayer_png_30fps/101-150/undistorted"
+    # args.configs = "arguments/dynerf/default.py"
+    args.skip_train = True
+    args.skip_test = True
+    # print("Rendering " , args.model_path)
     if args.configs:
         print("Loading configs from ", args.configs)
         import mmcv
@@ -185,5 +193,4 @@ if __name__ == "__main__":
         args = merge_hparams(args, config)
     # Initialize system state (RNG)
     safe_state(args.quiet)
-
     render_sets(model.extract(args), hyperparam.extract(args), args.iteration, pipeline.extract(args), args.skip_train, args.skip_test, args.skip_video, args.skip_grid_render)

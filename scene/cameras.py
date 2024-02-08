@@ -8,12 +8,13 @@
 #
 # For inquiries contact  george.drettakis@inria.fr
 #
-
+import math
 import torch
 from torch import nn
 from pytorch3d.renderer.cameras import FoVPerspectiveCameras
+from typing import Union
 import numpy as np
-from utils.graphics_utils import getWorld2View2, getWorld2View3, getProjectionMatrix
+from utils.graphics_utils import getWorld2View2, getWorld2View, getProjectionMatrix
 
 class Camera(nn.Module):
     def __init__(self, colmap_id, R, T, FoVx, FoVy, image, gt_alpha_mask,
@@ -26,7 +27,7 @@ class Camera(nn.Module):
         self.colmap_id = colmap_id
         self.R = R
         self.T = T
-        self.FoVx = FoVx*1.6/FoVx
+        self.FoVx = FoVx #FoVx*1.6/FoVx
         self.FoVy = FoVy
         self.image_name = image_name
         self.time = time
@@ -58,27 +59,60 @@ class Camera(nn.Module):
 
 
         # R = -R
-        # R[:,0] =  -R[:,0]
-        # T = -T.dot(R)
+       
+        # R[:,0] = -R[:,0]
+        # T = -R.dot(T)
 
 
         R = torch.Tensor(R).unsqueeze(0)
         T = torch.Tensor(T).unsqueeze(0)
+       
 
-        # R = torch.Tensor(R).unsqueeze(0)
-        # T = torch.Tensor(T).unsqueeze(0)
+
         
-        # # R = -R
+        
+        # R = -R
         # R[:,0] =  -R[:,0]
-        persp_cam = FoVPerspectiveCameras(device="cuda", R = R, T = T, zfar = self.zfar, znear = self.znear, fov = self.FoVy, degrees=False, aspect_ratio=self.FoVx/self.FoVy)
-        self.world_view_transform = persp_cam.get_world_to_view_transform().get_matrix()
-     
-        self.full_proj_transform = persp_cam.get_full_projection_transform().get_matrix()
+        # T = -T
+        # persp_cam = FoVPerspectiveCameras(device="cuda", R = R, T = T, zfar = self.zfar, znear = self.znear, fov = self.FoVy, degrees=False, aspect_ratio=self.FoVx/self.FoVy)
+        # proj_matrix = persp_cam.get_projection_transform().get_matrix()
+        # self.world_view_transform = persp_cam.get_world_to_view_transform().get_matrix()
+        self.world_view_transform = getWorld2View(R, T).transpose(0,1)
+        # self.world_view_transform2 = self.world_view_transform2.transpose(0, 1)
+        self.projection_matrix = projection_matrix(self.znear, self.zfar, self.FoVx, self.FoVy, device="cuda").transpose(0,1)
+        # self.full_proj_transform = persp_cam.get_full_projection_transform().get_matrix()
+        # self.full_proj_transform = self.projection_matrix.mm(self.world_view_transform)
+        self.full_proj_transform = self.world_view_transform.mm(self.projection_matrix)
+
+        # self.full_proj_transform[3,:] =  -self.full_proj_transform[3,:]
+        # self.camera_center = persp_cam.get_camera_center()
+        self.camera_center = self.world_view_transform.inverse()[3, :3]
       
-        self.camera_center = persp_cam.get_camera_center()
+        
+        pass
         
 
         
+def projection_matrix(znear, zfar, fovx, fovy, device: Union[str, torch.device] = "cpu"):
+    """
+    Constructs an OpenGL-style perspective projection matrix.
+    """
+    t = znear * math.tan(0.5 * fovy)
+    b = -t
+    r = znear * math.tan(0.5 * fovx)
+    l = -r
+    n = znear
+    f = zfar
+    return torch.tensor(
+        [
+            [2 * n / (r - l), 0.0, (r + l) / (r - l), 0.0],
+            [0.0, 2 * n / (t - b), (t + b) / (t - b), 0.0],
+            [0.0, 0.0, (f + n) / (f - n), -1.0 * f * n / (f - n)],
+            [0.0, 0.0, 1.0, 0.0],
+        ],
+        device=device,
+    )
+
 
 
 # class Camera(nn.Module):

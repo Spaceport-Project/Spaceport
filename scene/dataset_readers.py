@@ -437,11 +437,13 @@ def format_render_poses(poses,data_infos):
         pose[:3,:] = p[:3,:]
         # matrix = np.linalg.inv(np.array(pose))
         R = pose[:3,:3]
-        R = - R
-        R[:,0] = -R[:,0]
-        T = -pose[:3,3].dot(R)
+        T = pose[:3,3]
+        # R = - R
+        # R[:,0] = -R[:,0]
+        # # T = -T.dot(R)
+        # T[1:] = -T[1:]
         FovX = focal2fov(data_infos.focal[0], image.shape[2])
-        FovY = focal2fov(data_infos.focal[0], image.shape[1])
+        FovY = focal2fov(data_infos.focal[1], image.shape[1])
         cameras.append(CameraInfo(uid=idx, R=R, T=T, FovY=FovY, FovX=FovX, image=image,
                             image_path=image_path, image_name=image_name, width=image.shape[2], height=image.shape[1],
                             time = time))

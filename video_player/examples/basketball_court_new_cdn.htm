@@ -1,187 +1,111 @@
-<!DOCTYPE html>
+<!DOCTYPE HTML>
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Equirectangular Sample</title>
-    <!-- <link rel="stylesheet" href="https://cdn.pannellum.org/2.5/pannellum.css"/> -->
-    <link rel="stylesheet" href="https://d2nu66bxxofnfe.cloudfront.net/demo/src/css/pannellum.css">
-    <link rel="icon" href="./spaceport_logo.png" type="image/png">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Basketball Court</title>
+    <link rel="stylesheet" href="https://d2nu66bxxofnfe.cloudfront.net/demo/src/css/pannellum.css"/>
+    <link rel ="stylesheet" href = "https://d2nu66bxxofnfe.cloudfront.net/demo/loading.css" />
+ 
+    <!-- <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.js"></script> -->
+    <script type="text/javascript" src="https://d2nu66bxxofnfe.cloudfront.net/demo/src/js/libpannellum.js"></script>
+    <script type="text/javascript" src="https://d2nu66bxxofnfe.cloudfront.net/demo/src/js/pannellum.js"></script>
 
-    <script type="text/javascript" src="https://cdn.pannellum.org/2.5/pannellum.js"></script>
-
-    <link href="https://d2nu66bxxofnfe.cloudfront.net/demo/src/css/video-js.css" rel="stylesheet"
-      type="text/css">
-    <!-- <script type="text/javascript" src="http://vjs.zencdn.net/5.17.0/video.js"></script> -->
-    <script src="https://vjs.zencdn.net/8.0.4/video.min.js"></script>
-
-    <script src="https://d2nu66bxxofnfe.cloudfront.net/demo/src/js/videojs-pannellum-plugin.js"></script>
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
-    <script src="https://d2nu66bxxofnfe.cloudfront.net/demo/src/js/videojs-playlist.js"></script>
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
     <link href="https://netdna.bootstrapcdn.com/font-awesome/3.2.1/css/font-awesome.css" rel="stylesheet">
-
-
-     <style>
-
-        .vjs-has-started .vjs-loading-spinner {
-        display: none !important;
-        }
-    
-        
-        body, html {
-        margin: 0;
-        padding: 0;
-        height: 100%;
-        }
-
-        .video-container {
-        position: relative;
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
+    <style>
+    #panorama {
         width: 100%;
         height: 100%;
-        }
-
-        #panorama {
+        position:absolute;
+    }
+    html {
+        overflow:hidden;
+    }
+    body {
+        margin:0px;
+    }
+     #controls {
+        position: absolute;
+        z-index: 2;
+        text-align: center;
         width: 100%;
-        height: 100%;
-        }
-
-        .icon {
+        padding-bottom: 3px;
+        bottom: 8%;
+        left: 30%;
+    }
+    .ctrl {
+        padding: 8px 5px;
+        width: 30px;
+        text-align: center;
+        background: rgba(200, 200, 200, 0.8);
+        display: inline-block;
+        cursor: pointer;
+        margin-right: 10px;
+        margin-bottom: 15px;
         
-        position: absolute; 
-        bottom: 70px;
-        right: 70px;
-        cursor: default;
-        }
+    }
+    .ctrl:hover {
+        background: rgba(200, 200, 200, 1);
+    }
 
 
-        .arrow {
-            transition: fill 0.3s; /* Smooth transition for the fill property */
-        }
+    .extra-info {
+        display: none;
+        line-height: 30px;
+        font-size: 12px;
+        position: absolute;
+        top: 0;
+        left: 50px;
+     
+    }
 
-        .arrow:hover {
-            fill: #ff0000; /* Change the fill color to orange when hovered */
-            cursor: pointer; /* Change cursor to a pointer to indicate interactivity */
-        }
+    .info:hover .extra-info {
+        display: block;
+    }
 
-        .extra-info {
-            display: none;
-            line-height: 30px;
-            font-size: 12px;
-            position: absolute;
-            top: 0;
-            left: 50px;
-        
-        }
+    .info {
+        font-size: 20px;
+        padding-left: 5px;
+        width: 20px;
+        border-radius: 15px;
+        z-index: 2;
+        position: fixed;
+        left: 5%;
+        top: 80%;
+        color: red;
+    }
 
-        .info:hover .extra-info {
-            display: block;
-        }
+    .info:hover {
+        background-color: white;
+        padding: 0 0 0 5px;
+        width: 315px;
+        height: 120px;
+        text-align: left !important;
+        z-index: 99;
+    }
 
-        .info {
-            font-size: 20px;
-            padding-left: 5px;
-            width: 20px;
-            border-radius: 15px;
-            z-index: 2;
-            position: fixed;
-            left: 5%;
-            top: 80%;
-            color: red;
-        }
-
-        .info:hover {
-            background-color: white;
-            padding: 0 0 0 5px;
-            width: 315px;
-            height: 120px;
-            text-align: left !important;
-            z-index: 99;
-        }
-        /* Remove pannellum text when left-clicked on the page*/
-
-        .pnlm-about-msg {
+    .pnlm-about-msg {
+       visibility: hidden;
+        a {
             visibility: hidden;
-            a {
-                visibility: hidden;
-            }
-         }
-
-         .popup {
-            position: absolute;
-            display: inline-block;
-            left: 30px;
-            top: 70px;
-            z-index: 2;
-            cursor: pointer;
-            -webkit-user-select: none;
-            -moz-user-select: none;
-            -ms-user-select: none;
-            user-select: none;
-        }
-
-        
-        .popup .popuptext {
-            visibility: hidden;
-            width: 400px;
-            /* background-color: #555; */
-            color: #f70303;
-            text-align: center;
-            border-radius: 6px;
-            padding: 8px 0;
-            position: fixed;
-            z-index: 1;
-            left: 50%;
-            top: 10%;
-            margin-left: auto;
-            margin-top: auto;
-            font-size: large;
-            /* margin: auto; */
-            /* margin-left: -250px; /*(half of width)*/
-            /* margin-top: -250px; */ 
-            /* top: ;
-            left: 50%;
-            margin-left: -80px; */
-        }
-
-        /* Popup arrow */
-        /* .popup .popuptext::after {
-            content: "";
-            position: absolute;
-            top: 50px; 
-            left: 50px;
-            margin-left: -5px;
-            border-width: 5px;
-            border-style: solid;
-            border-color: #555 transparent transparent transparent;
-        } */
-
-        /* Toggle this class - hide and show the popup */
-        .popup .show {
-            visibility: visible;
-            -webkit-animation: fadeIn 1s;
-            animation: fadeIn 1s;
-        }
-
-        /* Add animation (fade in the popup) */
-        @-webkit-keyframes fadeIn {
-            from {opacity: 0;} 
-            to {opacity: 1;}
-        }
-
-        @keyframes fadeIn {
-            from {opacity: 0;}
-            to {opacity:1 ;}
-        }
-
-
-
+          }
+      }
     </style>
 
 
-</head>
- <body>
 
-    <!-- <div class="col-md-12"> -->
+</head>
+<body>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+
+
+<script src="https://d2nu66bxxofnfe.cloudfront.net/demo/src/js/progressbar.js"></script>
+<!-- <input type="radio" name="foo" value="1080p" checked> 1080p </input>
+<input type="radio" name="foo" value="2160p"> 2160p </input> -->
+<div id="panorama">
+   
+    <div class="col-md-12">
         <div class="info">
           <i class="icon-info-sign"></i>
     
@@ -191,181 +115,400 @@
             Use Arrow Keys or Mouse to change view.
           </span>
         </div>
-        <div class="popup"> 
-            <span class="popuptext" id="myPopup">A Simple Popup!</span>
-        </div>
-  
+      
+    </div>
 
-  <div class="video-container">
+    <div id="controls">
+        <div class="ctrl" id="pan-up">&#9650;</div>
+        <br>
+        <div class="ctrl" id="pan-left">&#9668;</div>
+        <div class="ctrl" id="pan-down">&#9660;</div>
+        <div class="ctrl" id="pan-right">&#9658;</div>
+    </div>
  
-      <video id="panorama" class="video-js vjs-big-play-centered " controls="" preload="auto" autoplay="true" 
-      crossorigin="anonymous" >
-          <source src="https://d223v4e7dt6i6.cloudfront.net/oguz_360_grid_videos/grid_21.mp4" type="video/mp4" />
-          <p class="vjs-no-js">
-              To view this video please enable JavaScript, and consider upgrading to
-              a web browser that <a href="http://videojs.com/html5-video-support/"
-              target="_blank">supports HTML5 video</a>
-          </p>
-          
-      </video>
-   
-      <div class = "icon"  id="svg-container"></div>
+</div>
+<!-- <div id = "ringloader" class="ring">Loading
+    <span></span>
+</div> -->
+<div id="container" class = "ring"><span></span>
 </div>
 
 
 
 <script>
 
-document.addEventListener('DOMContentLoaded', function() {
-    fetch('./arrows.svg')
-        .then(response => response.text())
-        .then(svgData => {
-            document.getElementById('svg-container').innerHTML = svgData;
 
-            // Add click event listeners to individual triangles
-            var right_arrow = document.getElementById('right-arrow');
-            var left_arrow = document.getElementById('left-arrow');
-            var up_arrow = document.getElementById('up-arrow');
-            var down_arrow = document.getElementById('down-arrow');
-            var middle = document.getElementById('middle');
 
-            right_arrow.addEventListener('click', function(event) {
-
-                window.dispatchEvent(new KeyboardEvent('keydown', {'key': 'l'}));
-            });
-
-            left_arrow.addEventListener('click', function() {
-                window.dispatchEvent(new KeyboardEvent('keydown', {'key': 'j'}));
-            })
-
-            up_arrow.addEventListener('click', function() {
-                window.dispatchEvent(new KeyboardEvent('keydown', {'key': 'i'}));
-            });
-
-            down_arrow.addEventListener('click', function() {
-                window.dispatchEvent(new KeyboardEvent('keydown', {'key': 'k'}));
-            });
-            
-            middle.addEventListener('click', function(){
-                player.pnlmViewer.setPitch(pitch_init, 0);
-                player.pnlmViewer.setYaw(yaw_init, 0);
-                player.pnlmViewer.setHfov(hfov_init, 0);
-                index = index_init
-                player.playlist.currentItem(index);
-
-            });
-
-    
-        })
-        .catch(error => console.error(error));
-
-});
+var viewer = pannellum.viewer('panorama', { 'scenes': {}, 'autoLoad': true, 'showFullscreenCtrl': true, 'showZoomCtrl': true } );
 
 const pitch_thres = 180/6;
 const yaw_thres = 180/8;
-const length = 10;
-const width = 10;
+const length = 20;
+const width = 15;
 const height = 1;
 const area = length * width;
 const volume = length * width * height;
-var index_init = 3;
-var index= index_init;
+var index = 245;
 var h = Math.floor(index / area);
-var hfov_init= 120.0;
-var pitch_init = 0.0;
-var yaw_init= 90;
-var hfov = hfov_init;
-var pitch = pitch_init;
-var yaw = yaw_init;
-var basepath = "../media/faruk_teknopark_13-12-2023_equirec"
+var basepath = "https://d2nu66bxxofnfe.cloudfront.net/demo/examples/sports_basket_grid_20x15";
+var pitch = -16.28, yaw = 0.0, hfov = 120;
+var cacheName = 'basketnew_cdn_360photos'; 
+var cnt = 0;
+
+$('input[type=radio]').change(function() {
+   h = 0;
+   removeScenes()
+   addScenes(this.value);
+
+});
+
+window.onload = function onLoad() {
+   
+    var bar = new ProgressBar.Circle("#container", {
+      color: '#aaa',
+      // This has to be the same size as the maximum width to
+      // prevent clipping
+      strokeWidth: 4,
+      trailWidth: 0,
+      easing: 'easeInOut',
+      duration: 600000,
+      text: {
+        autoStyleContainer: false
+      },
+      from: { color: '#aaa', width: 1 },
+      to: { color: '#333', width: 4 },
+      // Set default step function for all animate calls
+      step: function(state, circle) {
+        circle.path.setAttribute('stroke', state.color);
+        circle.path.setAttribute('stroke-width', state.width);
+     
+        //var value = Math.round(circle.value() * 100);
+        var value = Math.round(cnt*100/totalVolume);
+       // if (value>100) return;
+        if (value === 0) {
+          circle.setText('');
+        } else {
+          circle.setText(value);
+        }
+    
+      }
+});
+bar.text.style.fontFamily = '"Raleway", Helvetica, sans-serif';
+bar.text.style.fontSize = '2rem';
+
+bar.animate(1.0);  // Number from 0.0 to 1.0
+
+} 
 
 
-var player = videojs('panorama', {
-          plugins: {
-                          pannellum: {}
-                      }
-          }
-);
 
-var list = [];
-for (let i = 0 ; i < volume ; i++) {
-list.push({
-  sources: [{
-    src: basepath + "/output_grid_" + i + ".mp4",
-    type: 'video/mp4'
-  }]});
+function addScenes(){
+   
+    for (let i = 0 ; i < volume; i++){
+
+        viewer.addScene(`${i}`, {
+        "type": "equirectangular",
+        "panorama": `${basepath}/${i}.jpg`
+
+        });
+
+    }
+   
+  //  setTimeout (()=> {
+        viewer.loadScene(`${index}`);
+  //  ,10);
+    
+}
+
+
+function removeScenes(){
+    for (let i = 0 ; i < volume; i++){
+        const res = viewer.removeScene(`${i}`);
+       // console.log(res);
+
+    }
+
 
 
 }
 
-player.playlist(list);
-player.pnlmViewer.setPitch(pitch, 0);
-player.pnlmViewer.setYaw(yaw, 0);
-player.pnlmViewer.setHfov(hfov, 0);
 
-player.playlist.autoadvance(0);
-player.playlist.currentItem(index);
-player.requestFullscreen();
+addScenes();
 
-player.on('ended', function (){
-    console.log("ended", index)
+
+
+
+function createLineY(ind, incr) {
+    let arr = new Set();
+   // let arr = [];
+    
+    
+    for (let i = ind  ; i <= ind + incr ; i++){
+        if ((i+1) % length == 0) {
+            arr.add(`${basepath}/${i}.jpg`);
+            break;
+        }
+        arr.add(`${basepath}/${i}.jpg`);
+
+    }
+
+    for (let i = ind ; i >= ind - incr ; i--){
+        if (i % length == 0) {
+            arr.add(`${basepath}/${i}.jpg`);
+            break;
+        }
+        //if (i % length == 0) break;
+        arr.add(`${basepath}/${i}.jpg`);
+    }
+
+    return arr;
+
+}
+
+
+
+function createAreaXY(ind, incr, k) {
+    let arr=new Set();
+    //let arr = [];
+    for (let i = ind  ; i <= ind + incr*length ; i+=length){
+
+        if (i >= ( k + 1) * area ) break;
+       // if (i < ( k + 1) * area ) 
+        arr =  new Set([...createLineY(i, incr), ...arr]);
+       //arr= arr.concat(createLineY(i, incr)).unique();
+    }
+
+    for (let i = ind  ; i >= ind - incr*length ; i-=length){
+        if (i <  k * area ) break;
+       // if (i >=  k * area ) 
+         arr = new Set([...createLineY(i, incr), ...arr]);
+        //arr= arr.concat(createLineY(i, incr)).unique();
+    }
+
+    return arr;
+}
+
+
+function createVolumeXYZ(ind, incr, k) {
+    let arr=new Set();
+   //let arr=[];
    
-    if (index < 0) player.playlist.currentItem(0);
-    player.play();
+    let kk = k;
+    for (let i = ind ; i <= ind + incr*area ; i+=area, kk++){
+       // if (i < volume && kk < height) 
+         if (i >= volume || kk >= height) break;
+           arr =  new Set([...createAreaXY(i, incr, kk), ...arr]);
+          // arr = arr.concat(createAreaXY(i, incr, kk)).unique();
+    }
+    for (let i = ind  ; i >= ind - incr*area ; i-=area, k--){
+        //if (i >= 0 && k >= 0) 
+         if (i < 0 || k < 0) break;
+          arr =  new Set([...createAreaXY(i, incr, k), ...arr]);
+         // arr = arr.concat(createAreaXY(i, incr, k)).unique();
+    }
 
 
-})
+    return arr;
+}
+
+Array.prototype.unique = function() {
+    var a = this.concat();
+    for(var i=0; i<a.length; ++i) {
+        for(var j=i+1; j<a.length; ++j) {
+            if(a[i] === a[j])
+                a.splice(j--, 1);
+        }
+    }
+
+    return a;
+};
+
+
+
+
+// async function addToCache(array) {
+
+//     for (const el of array) {
+//         await caches.open(cacheName).then( cache => {
+//           cache.add(el).then( () => {
+//             console.log("Data cached ")
+//             });
+//         });
+
+//     }
+
+// }
+
+async function addToCache2(array) {
+    
+    for (const el of array) {
+        let pr1 = await caches.open(cacheName);
+        let pr2 = await  pr1.add(el);
+      //  cnt++;
+      //  console.log("data cached:",cnt);
+     
+    }
+   
+}
+
+async function addToCache1(array) {
+    
+    for (const el of array) {
+        let pr1 = await caches.open(cacheName);
+        let pr2 = await  pr1.add(el);
+        cnt++;
+        //if (cnt > totalVolume) break;
+      //  console.log("data cached:",cnt);
+     
+    }
+   
+}
+
+async function addSingleToCache (el) {
+
+       let pr1 = await caches.open(cacheName);
+        let pr2 = await  pr1.add(el);
+       // console.log("data cached",++cnt);
+
+}
+
+async function addAndReadFromCache(el) {
+        let pr = await addSingleToCache(el);
+        let pr1 = await caches.open(cacheName);
+        let pr2 = await  pr1.match(el);
+        let pr3 = await pr2.blob();
+        return pr3;
+
+}
+
+async function readFromCache(el) {
+        let pr1 = await caches.open(cacheName);
+        let pr2 = await  pr1.match(el);
+        let pr3 = await pr2.blob();
+        return pr3;
+
+}
+
+// function readFromCache(el) {
+//     let pr = new Promise( (resolve, reject ) => {
+//         caches.open(cacheName).then(cache => {
+//             cache.match(el).then(image => {
+//                 image.blob().then(res=> {
+//                     ///console.log(res);
+//                     resolve(res);
+//                 });
+        
+//             });
+//         });
+//     });
+//     return pr;
+// }
+
+
+function calculateVolumeXYZ(ind, incr) {
+
+    var h_plus = ind + area*incr > volume ? height - h -1: incr;
+    var h_minus = ind - area*incr < 0  ? h:  incr;
+    var hh = h_minus + h_plus + 1;
+
+    var l_plus = ind % length + incr >= length ? length - ind % length-1: incr;
+    var l_minus = ind % length - incr < 0 ? ind % length: incr;
+    var ll = l_minus + l_plus + 1;
+
+    var w_plus = ind + incr * length > ( h + 1) * area ? width - Math.ceil((ind % area)/length) :incr
+    var w_minus = ind - incr * length < ( h ) * area ? Math.ceil((ind % area)/length) :incr;
+    var ww = w_minus + w_plus + 1 ; 
+
+    // var h = 2*incr + 1 > height ? height: 2*incr + 1;
+    // var w = 2*incr + 1 > width ? width: 2*incr + 1;
+    // var l = 2*incr + 1 > length ? length: 2*incr + 1;
+
+    
+    
+    
+
+    return hh*ww*ll;
+
+}
+var totalVolume = calculateVolumeXYZ(index, 1);
+console.log(totalVolume);
+let array= createVolumeXYZ(index, 1, h);
+
+//console.log(array);
+
+(async function () {
+     try {
+       showSpinner();
+       await addToCache1(new Set(array));
+     } catch (err) {
+       console.error(err);
+     } finally {
+        hideSpinner()
+     }
+})();
+
+
+
+(async function(){
+        // addToCache2(array);
+        try {
+            let res = await readFromCache(`${basepath}/${index}.jpg`);
+            loadScene(res);
+        } catch (error) {
+            //console.error('error occured: ', error.message);
+            let res = await addAndReadFromCache(`${basepath}/${index}.jpg`);
+            loadScene(res);
+        } 
+        
+    })();
+
+// readFromCache(`${basepath}/${index}.jpg`).then((res)=>{
+//     loadScene(res);  
+// });
 
 window.addEventListener('keydown', function(event) {
 
-    var key = findKey(pitch, yaw -90 , event.key);
+  //  console.log(pitch, yaw);
+
+    var key = findKey(pitch, yaw , event.key);
     console.log(key);
-    var currentTime = player.currentTime();
-    var prev = index;
-    var direc_lim = "";
+
     switch (key) {
-        case "i":
+        case "j":
             {               
                 
                 const tmp = index - length;
                 index = tmp < h * area ? index: tmp; 
-                if (index !== tmp)
-                    direc_lim="top";
                 
 
             } 
                 
             break;
 
-        case "k":
+        case "l":
             {
                 const tmp = index + length;
                 index = tmp >= ( h + 1) * area ? index: tmp;
-                if (index !== tmp)
-                    direc_lim="bottom";
-            
+              
             }
 
             break;
 
-        case "l":
+        case "i":
             {
                 const tmp = index + 1;  
                 index = tmp % length == 0 ? index: tmp;
-                if (index !== tmp)
-                    direc_lim="right";
-            
+               
+               
             }
             break;
 
-        case "j":
+        case "k":
             {
                 const tmp = index - 1;  
                 index = (tmp + 1) % length == 0 ? index: tmp;
-                if (index !== tmp)
-                    direc_lim="left";
-            
-        
+               
+         
             }
 
             break;
@@ -376,8 +519,7 @@ window.addEventListener('keydown', function(event) {
                 const tmp = index + area;
                 if (h < height) index = tmp;
                 else h = height -1;
-                if (index !== tmp)
-                    direc_lim = "grid-top"
+                
             
             }
             break;
@@ -388,225 +530,171 @@ window.addEventListener('keydown', function(event) {
                 const tmp = index - area;
                 if (h < 0) h = 0;
                 else index = tmp;
-                if (index !== tmp)
-                    direc_lim = "grid-bottom"
-            
                 
 
 
             }
 
-            break;
-
-        case "kl":
-            {
-                let tmp = index + length;
-                index = tmp >= ( h + 1) * area ? index: tmp;
-                if (index !== tmp)
-                    direc_lim="bottom ";
-                tmp = index + 1;  
-                index = tmp % length == 0 ? index: tmp;
-                if (index !== tmp)
-                    direc_lim+="right";
-
-
-
-            }
             break;
 
         case "li":
             {
-                let tmp = index - length;
-                index = tmp < h * area ? index: tmp; 
-                if (index !== tmp)
-                    direc_lim="top ";
+                let tmp = index + length;
+                index = tmp >= ( h + 1) * area ? index: tmp;
                 tmp = index + 1;  
                 index = tmp % length == 0 ? index: tmp;
-                if (index !== tmp)
-                    direc_lim+="right";
-        
+                
+
+
+            }
+            break;
+
+        case "ij":
+            {
+                let tmp = index - length;
+                index = tmp < h * area ? index: tmp; 
+                tmp = index + 1;  
+                index = tmp % length == 0 ? index: tmp;
+          
                 
             }
             break;
 
-        case "ij": 
+        case "jk": 
             {
                 let tmp = index - length;
                 index = tmp < h * area ? index: tmp; 
-                if (index !== tmp)
-                    direc_lim="top ";
                 tmp = index - 1;  
                 index = (tmp + 1) % length == 0 ? index: tmp;
-                if (index !== tmp)
-                    direc_lim+="left";
-            
+              
 
             }
             break;
 
-        case "jk":
+        case "kl":
             {
 
                 let tmp = index + length;
                 index = tmp >= ( h + 1) * area ? index: tmp;
-                if (index !== tmp)
-                    direc_lim="bottom ";
                 tmp = index - 1;  
                 index = (tmp + 1) % length == 0 ? index: tmp;
-                if (index !== tmp)
-                    direc_lim+="left";
-            
+               
 
             }
             break;
 
-        case "ul":
+        case "ui":
             {
                 
                 
                 let tmp = index + 1;  
                 index = tmp % length == 0 ? index: tmp;
-                if (index !== tmp)
-                    direc_lim="right ";
                 h++;
                 tmp = index + area;
                 if (h < height) index = tmp;
                 else h = height -1;
-                if (index !== tmp)
-                    direc_lim+="grid-top";
-
+          
 
 
             }
             break;
         
-        case "hj":
+        case "hk":
             {
                 let tmp = index - 1;  
                 index = (tmp + 1) % length == 0 ? index: tmp;
-                if (index !== tmp)
-                    direc_lim="left ";
                 h--;
                 tmp = index - area;
                 if (h < 0) h = 0;
                 else index = tmp;
-                if (index !== tmp)
-                    direc_lim+="grid-bottom";
+          
 
+
+
+            }
+            break;
+
+        case "hi":
+            {
+                
+                let tmp = index + 1;  
+                index = tmp % length == 0 ? index: tmp;
+                h--;
+                tmp = index - area;
+                if (h < 0) h = 0;
+                else index = tmp;
+           
+
+            }
+            break;
         
+        case "uk": 
+            {
+                let tmp = index - 1;  
+                index = (tmp + 1) % length == 0 ? index: tmp;
+                h++;
+                tmp = index + area;
+                if (h < height) index = tmp;
+                else h = height -1;
+             
 
+            }
+            break;
+        
+        case "ul":
+            {
+                let tmp = index + length;
+                index = tmp >= ( h + 1) * area ? index: tmp;
+                h++;
+                tmp = index + area;
+                if (h < height) index = tmp;
+                else h = height -1;
+            
 
+            } 
+            break; 
+
+        case "hj":
+            {
+
+                let tmp = index - length;
+                index = tmp < h * area ? index: tmp;  
+                h--;
+                tmp = index - area;
+                if (h < 0) h = 0;
+                else index = tmp;
+             
 
             }
             break;
 
         case "hl":
+
             {
-                
-                let tmp = index + 1;  
-                index = tmp % length == 0 ? index: tmp;
-                if (index !== tmp)
-                    direc_lim = "right "
+                let tmp = index + length;
+                index = tmp >= ( h + 1) * area ? index: tmp;
                 h--;
                 tmp = index - area;
                 if (h < 0) h = 0;
                 else index = tmp;
-                if (index !== tmp)
-                    direc_lim += "grid-bottom"
-            
-        
+              
 
             }
             break;
         
         case "uj": 
             {
-                let tmp = index - 1;  
-                index = (tmp + 1) % length == 0 ? index: tmp;
-                if (index !== tmp)
-                    direc_lim = "left "
-                h++;
-                tmp = index + area;
-                if (h < height) index = tmp;
-                else h = height -1;
-                if (index !== tmp)
-                    direc_lim += "grid-top"
-            
-            
-
-            }
-            break;
-        
-        case "uk":
-            {
-                let tmp = index + length;
-                index = tmp >= ( h + 1) * area ? index: tmp;
-                if (index !== tmp)
-                    direc_lim = "bottom "
-                h++;
-                tmp = index + area;
-                if (h < height) index = tmp;
-                else h = height -1;
-                if (index !== tmp)
-                    direc_lim = "grid-top"
-            
-
-            } 
-            break; 
-
-        case "hi":
-            {
-
-                let tmp = index - length;
-                index = tmp < h * area ? index: tmp;  
-                if (index !== tmp)
-                    direc_lim = "top "
-                h--;
-                tmp = index - area;
-                if (h < 0) h = 0;
-                else index = tmp;
-                if (index !== tmp)
-                    direc_lim += "grid-bottom"
-            
-
-            }
-            break;
-
-        case "hk":
-
-            {
-                let tmp = index + length;
-                index = tmp >= ( h + 1) * area ? index: tmp;
-                if (index !== tmp)
-                    direc_lim = "bottom "
-                h--;
-                tmp = index - area;
-                if (h < 0) h = 0;
-                else index = tmp;
-                if (index !== tmp)
-                    direc_lim += "grid-bottom"
-            
-
-            }
-            break;
-        
-        case "ui": 
-            {
                 let tmp = index - length;
                 index = tmp < h * area ? index: tmp; 
-                if (index !== tmp)
-                    direc_lim = "top "
                 h++;
                 tmp = index + area;
                 if (h < height) index = tmp;
                 else h = height -1;
-                if (index !== tmp)
-                    direc_lim += "grid-top"
-            
+              
             }
             break;
 
-        case "ukl":
+        case "uli":
             {
 
                 let tmp = index + length;
@@ -617,86 +705,86 @@ window.addEventListener('keydown', function(event) {
                 tmp = index + area;
                 if (h < height) index = tmp;
                 else h = height -1;
-        
-            }
-            break;
-
-        case "hij":
-            {
-
-                let tmp = index - length;
-                index = tmp < h * area ? index: tmp; 
-                tmp = index - 1;  
-                index = (tmp + 1) % length == 0 ? index: tmp;
-                h--;
-                tmp = index - area;
-                if (h < 0) h = 0;
-                else index = tmp;
-        
-            }
-            break;
-        
-        case "hkl":
-            {
-                let tmp = index + length;
-                index = tmp >= ( h + 1) * area ? index: tmp;
-                tmp = index + 1;  
-                index = tmp % length == 0 ? index: tmp;
-                h--;
-                tmp = index - area;
-                if (h < 0) h = 0;
-                else index = tmp;
-
-            }
-            break;
-
-        case "uij":
-            {
-
-                let tmp = index - length;
-                index = tmp < h * area ? index: tmp; 
-                tmp = index - 1;  
-                index = (tmp + 1) % length == 0 ? index: tmp;
-                h++;
-                tmp = index + area;
-                if (h < height) index = tmp;
-                else h = height -1;
-        
-            }
-            break;
-        
-        
-        case "uji":
-            {
-                let tmp = index + length;
-                index = tmp >= ( h + 1) * area ? index: tmp;
-                tmp = index - 1;  
-                index = (tmp + 1) % length == 0 ? index: tmp;
-                h++;
-                tmp = index + area;
-                if (h < height) index = tmp;
-                else h = height -1;
-            
-            }
-            break;
-        
-        case "hli":
-
-            {
-                let tmp = index - length;
-                index = tmp < h * area ? index: tmp; 
-                tmp = index + 1;  
-                index = tmp % length == 0 ? index: tmp;
-                h--;
-                tmp = index - area;
-                if (h < 0) h = 0;
-                else index = tmp;
-            
-
+          
             }
             break;
 
         case "hjk":
+            {
+
+                let tmp = index - length;
+                index = tmp < h * area ? index: tmp; 
+                tmp = index - 1;  
+                index = (tmp + 1) % length == 0 ? index: tmp;
+                h--;
+                tmp = index - area;
+                if (h < 0) h = 0;
+                else index = tmp;
+           
+            }
+            break;
+        
+        case "hli":
+            {
+                let tmp = index + length;
+                index = tmp >= ( h + 1) * area ? index: tmp;
+                tmp = index + 1;  
+                index = tmp % length == 0 ? index: tmp;
+                h--;
+                tmp = index - area;
+                if (h < 0) h = 0;
+                else index = tmp;
+
+            }
+            break;
+
+        case "ujk":
+            {
+
+                let tmp = index - length;
+                index = tmp < h * area ? index: tmp; 
+                tmp = index - 1;  
+                index = (tmp + 1) % length == 0 ? index: tmp;
+                h++;
+                tmp = index + area;
+                if (h < height) index = tmp;
+                else h = height -1;
+           
+            }
+            break;
+        
+        
+        case "ukl":
+            {
+                let tmp = index + length;
+                index = tmp >= ( h + 1) * area ? index: tmp;
+                tmp = index - 1;  
+                index = (tmp + 1) % length == 0 ? index: tmp;
+                h++;
+                tmp = index + area;
+                if (h < height) index = tmp;
+                else h = height -1;
+              
+            }
+            break;
+        
+        case "hij":
+
+            {
+                let tmp = index - length;
+                index = tmp < h * area ? index: tmp; 
+                tmp = index + 1;  
+                index = tmp % length == 0 ? index: tmp;
+                h--;
+                tmp = index - area;
+                if (h < 0) h = 0;
+                else index = tmp;
+             
+
+            }
+            break;
+
+        case "hkl":
 
             {
                 let tmp = index + length;
@@ -707,12 +795,12 @@ window.addEventListener('keydown', function(event) {
                 tmp = index - area;
                 if (h < 0) h = 0;
                 else index = tmp;
-        
+           
 
             }
             break;
 
-        case "uli" : 
+        case "uij" : 
             {
                 let tmp = index - length;
                 index = tmp < h * area ? index: tmp; 
@@ -722,74 +810,140 @@ window.addEventListener('keydown', function(event) {
                 tmp = index + area;
                 if (h < height) index = tmp;
                 else h = height -1;
-        
+          
             }
             break;
 
         case "ArrowUp":
-            pitch = player.pnlmViewer.getPitch();
-            yaw = player.pnlmViewer.getYaw();
+            pitch = viewer.getPitch();
+            yaw = viewer.getYaw();
 
             return;
 
 
         case "ArrowDown":
-            pitch = player.pnlmViewer.getPitch();
-            yaw = player.pnlmViewer.getYaw();
+            pitch = viewer.getPitch();
+            yaw = viewer.getYaw();
 
+
+            
             return;   
         case "ArrowLeft":
-            pitch = player.pnlmViewer.getPitch();
-            yaw = player.pnlmViewer.getYaw();
+            pitch = viewer.getPitch();
+            yaw = viewer.getYaw();
 
             return;
 
 
         case "ArrowRight":
-            pitch = player.pnlmViewer.getPitch();
-            yaw = player.pnlmViewer.getYaw();
+            pitch = viewer.getPitch();
+            yaw = viewer.getYaw();
 
             return; 
-
-  
 
         default:
             return;
 
+
+
+
     }
 
-
+   
     console.log(index);
-
-    if (prev !== index) {
-        popupFunc();
-        player.playlist.currentItem(index);
-        setTimeout(()=> {player.currentTime(currentTime);}, 1);
-    } else {
-        popupFunc(direc_lim.trim().replace(" ", "-"), true);
+    oldarray= new Set(array) ;//array.slice(0);
+    let arr = createVolumeXYZ(index, 3, h);
+    for (const a of arr) {
+      //   if (array.indexOf(a)==-1) array.push(a);
+        if (!array.has(a))  array.add(a);
     }
+    
+    //let difference = array.filter(x => !oldarray.includes(x));
+    let difference = getDifference(array, oldarray);
+   // console.log("dif:", difference);
+   
+    addToCache2(difference);
+    (async function(){
+        try {
+            var res = await readFromCache(`${basepath}/${index}.jpg`);
+            loadScene(res); 
+        } catch (error) {
+            let res = await addAndReadFromCache(`${basepath}/${index}.jpg`);
+            loadScene(res);
+        } 
+    })()
 
+    // addToCache2(difference);
+    // readFromCache(`${basepath}/${index}.jpg`).then((res)=>{
+    //     loadScene(res);  
+    // });
 
-
+   
 });
 
-window.addEventListener( 'mouseup', function (event){
+function getDifference(setA, setB) {
+  return new Set(
+    [...setA].filter(element => !setB.has(element))
+  );
+}
 
-   //  console.log(pitch, yaw, hfov)
-    pitch = player.pnlmViewer.getPitch();
-    yaw = player.pnlmViewer.getYaw();
 
+ function loadScene(res) {
+ 
+        viewer.loadScene2({[`${index}`]:res});
+        viewer.setPitch(pitch, 0);
+        viewer.setYaw(yaw, 0);
+        viewer.setHfov(hfov, 0);
+  
+}
 
+window.addEventListener( 'mousemove', function (event){
+
+    pitch = viewer.getPitch();
+    yaw = viewer.getYaw();
+   
+  //  console.log(pitch, yaw);
 
 
 }, false );
 
+window.addEventListener("wheel", (event) =>{
+    hfov = viewer.getHfov();
 
+}, false);
+
+
+
+document.getElementById('pan-up').addEventListener('click', function(e) {
+    window.dispatchEvent(new KeyboardEvent('keydown', {'key': 'i'}));
+});
+document.getElementById('pan-down').addEventListener('click', function(e) {
+     window.dispatchEvent(new KeyboardEvent('keydown', {'key': 'k'}));
+});
+document.getElementById('pan-left').addEventListener('click', function(e) {
+    window.dispatchEvent(new KeyboardEvent('keydown', {'key': 'j'}));
+});
+document.getElementById('pan-right').addEventListener('click', function(e) {
+     window.dispatchEvent(new KeyboardEvent('keydown', {'key': 'l'}));
+});
+
+function showSpinner() {
+  document.getElementById('container').style.display = 'block';
+}
+
+function hideSpinner() {
+  document.getElementById('container').style.display = 'none';
+}
+
+// var loader = document.getElementById('ringloader');
+// window.addEventListener("load", function (){
+//     loader.style.display="none";
+// })
 
 function findKey(pitch, yaw, key) {
     if (yaw > 180) yaw = yaw -360;
 
-    key =  key.replace(/\ı/g, "i");
+    key =  key.replace(/\覺/g, "i");
 
     if (!(pitch > pitch_thres || pitch < -pitch_thres) && !(yaw > yaw_thres || yaw < -yaw_thres)) {
         
@@ -932,33 +1086,8 @@ function findKey(pitch, yaw, key) {
 
 }
 
-function popupFunc(dir_lim="", addFlag=false) {
-    var popup = document.getElementById("myPopup");
-    if (popup.classList.contains("show")) {
-            popup.classList.remove("show");
-            if (addFlag) {
 
-                popup.innerHTML = "You have reached the " + dir_lim + " edge of the grid!!!"
-                popup.classList.add("show");
-            }
-        
-    } else {
-        if (addFlag) {
+</script>
 
-            popup.innerHTML = "You have reached the " + dir_lim + " edge of the grid!!!"
-            popup.classList.add("show");
-        }
-
-    }
-    
-   
-    
-}
-
-
- </script>
-    
- </body>
-
-
+</body>
 </html>

@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title> Teknopark Demo</title>
+    <title> Teknopark Demo 13-12-2023</title>
   
     <link rel="icon" href="./spaceport_logo.png" type="image/png">
 
@@ -36,6 +36,12 @@
         height: 100%;
         }
 
+        #canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            display:  none;
+        }
         #panorama {
         width: 100%;
         height: 100%;
@@ -118,25 +124,30 @@
 
 </head>
  <body>
-  <div class="video-container">
-    <div class="info">
-        <i class="icon-info-sign"></i>
-  
-        <span class="extra-info">
-          Use "I-J-K-L" or buttons on the screen to move through the scene. <br>
-         
-        </span>
-      </div>
-    <video id="panorama" class="video-js vjs-big-play-centered " controls="" preload="auto" autoplay="true" width="1440px" height="720px"
-    crossorigin="anonymous" >
-        <!-- <source src="./media/faruk_teknopark_v1/output_grid_16.mp4" type="video/mp4" /> -->
-        <p class="vjs-no-js">
-            To view this video please enable JavaScript, and consider upgrading to
-            a web browser that <a href="http://videojs.com/html5-video-support/"
-            target="_blank">supports HTML5 video</a>
-        </p>
-    </video>
-    <div class = "icon"  id="svg-container"></div>
+
+    <div class="video-container">
+        <div class="info">
+            <i class="icon-info-sign"></i>
+      
+            <span class="extra-info">
+              Use "I-J-K-L" or buttons on the screen to move through the scene. <br>
+             
+            </span>
+          </div>
+        <video id="panorama" class="video-js vjs-big-play-centered " controls="" preload="auto" autoplay="muted" width="1440px" height="720px"
+                crossorigin="anonymous" >
+            <!-- <source src="./media/faruk_teknopark_v1/output_grid_16.mp4" type="video/mp4" /> -->
+            <p class="vjs-no-js">
+                To view this video please enable JavaScript, and consider upgrading to
+                a web browser that <a href="http://videojs.com/html5-video-support/"
+                target="_blank">supports HTML5 video</a>
+            </p>
+        </video>
+        <canvas id="canvas" ></canvas>
+        <div class = "icon"  id="svg-container"></div>
+    </div>
+
+ 
 
 </div>
 <script>
@@ -185,17 +196,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
 });
 
-const length = 10;
-const width = 10;
-const height = 1;
-const area = length * width;
-const volume = length * width * height;
-var index_init = 67;
+const grid_length = 10;
+const grid_width = 10;
+const grid_height = 1;
+const area = grid_length * grid_width;
+const volume = grid_length * grid_width * grid_height;
+var index_init = 30;
 var index= index_init;
 var h = Math.floor(index / area);
 
 
-var basepath = "../media/faruk_teknopark_13-12-2023";
+var basepath = "../media/faruk_teknopark_13-12-2023/";
 
 var player = videojs('panorama');
 
@@ -203,8 +214,8 @@ var list = [];
 for (let i = 0 ; i < volume ; i++) {
 list.push({
   sources: [{
-    src: basepath + "/output_grid_" + i + ".mp4",
-    type: 'video/mp4'
+    src: basepath + i + "/output_grid.m3u8",
+    type: 'application/x-mpegURL'
   }]});
 
 
@@ -212,11 +223,14 @@ list.push({
 
 player.playlist(list);
 
-
+player.play();
 
 player.playlist.autoadvance(0);
 player.playlist.currentItem(index);
-player.requestFullscreen();
+
+var videoElement =   player.el().querySelector('video');
+var canvas = document.getElementById('canvas');
+//player.requestFullscreen();
 
 player.on('ended', function (){
     console.log("ended", index)
@@ -227,10 +241,64 @@ player.on('ended', function (){
 
 })
 
+
+
+async function customPlaylistTransition(player, ind, time) {
+      // Get the last frame of the current video
+      
+
+    const videoAspectRatio = videoElement.videoWidth/videoElement.videoHeight;
+    const videoClientAspectRatio = videoElement.clientWidth/videoElement.clientHeight;
+    if (videoAspectRatio > videoClientAspectRatio) 
+    {
+        var width = videoElement.clientWidth;
+        var height = width/videoAspectRatio;
+        var left = 0;
+        var top = (videoElement.clientHeight - height)/2;
+    } 
+    else 
+    {
+        
+        var height = videoElement.clientHeight;
+        var width = height * videoAspectRatio;
+        var top = 0;
+        var left = (videoElement.clientWidth - width)/2;
+    }
+
+   
+    canvas.width = videoElement.clientWidth
+    canvas.height = videoElement.clientHeight;
+    var canvasContext = canvas.getContext('2d');
+
+    // player.pause();
+    player.el().style.display = "none";
+    canvas.style.display="block";
+
+    canvasContext.fillStyle = "black";
+    canvasContext.fillRect(0, 0, canvas.width, canvas.height);
+    canvasContext.drawImage(videoElement, left, top, width, height);
+
+    // setTimeout(async function () {
+
+
+        player.playlist.currentItem(ind);
+        setTimeout(()=> {player.currentTime(time);}, 1);
+        await player.play();
+        canvas.style.display="none";
+        player.el().style.display = "block";
+
+
+
+
+
+    // }, 1); 
+
+}
+
 window.addEventListener('keydown', function(event) {
 
 
-  var key = event.key; //findKey(pitch, yaw - 90, event.key);
+  var key = event.key; 
   console.log(key);
   var currentTime = player.currentTime();
   var prev = index;
@@ -241,10 +309,8 @@ window.addEventListener('keydown', function(event) {
               
               
             const tmp = index - 1;  
-            index = (tmp + 1) % length == 0 ? index: tmp;
-            // const tmp = index + length;
-            //   index = tmp >= ( h + 1) * area ? index: tmp;
-              
+            index = (tmp + 1) % grid_length == 0 ? index: tmp;
+           
               
 
           } 
@@ -253,19 +319,17 @@ window.addEventListener('keydown', function(event) {
 
       case "l":
           {
-            // const tmp = index - length;
-            //   index = tmp < h * area ? index: tmp; 
+           
                const tmp = index + 1;  
-              index = tmp % length == 0 ? index: tmp;
+              index = tmp % grid_length == 0 ? index: tmp;
           }
 
           break;
 
       case "i":
           {
-            //   const tmp = index + 1;  
-            //   index = tmp % length == 0 ? index: tmp;
-              const tmp = index - length;
+            
+              const tmp = index - grid_length;
               index = tmp < h * area ? index: tmp; 
              
              
@@ -274,9 +338,8 @@ window.addEventListener('keydown', function(event) {
 
       case "k":
           {
-            // const tmp = index - 1;  
-            //   index = (tmp + 1) % length == 0 ? index: tmp;
-            const tmp = index + length;  
+           
+            const tmp = index + grid_length;  
             index = tmp >= ( h + 1) * area ? index: tmp;
              
        
@@ -322,10 +385,13 @@ window.addEventListener('keydown', function(event) {
    
     console.log(index);
     if (prev !== index) {
-    player.playlist.currentItem(index);
+        // player.playlist.currentItem(index);
 
-    setTimeout(()=> {player.currentTime(currentTime);}, 1);
+        // setTimeout(()=> {player.currentTime(currentTime);}, 1);
+        customPlaylistTransition(player, index, currentTime);
+
     }
+
 
 
  

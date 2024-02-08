@@ -29,11 +29,14 @@ def geom_transform_points(points, transf_matrix):
     return (points_out[..., :3] / denom).squeeze(dim=0)
 
 def getWorld2View(R, t):
-    Rt = np.zeros((4, 4))
-    Rt[:3, :3] = R.transpose()
+    t = t.squeeze(0)
+    R = R.squeeze(0)
+    Rt = torch.zeros(4, 4, device="cuda")
+    Rt[:3, :3] = R.transpose(0,1)
     Rt[:3, 3] = t
     Rt[3, 3] = 1.0
-    return np.float32(Rt)
+    # inv_Rt = torch.linalg.inv(Rt)
+    return Rt
 
 def getWorld2View3(R, t):
     Rt = np.zeros((4, 4))
@@ -65,7 +68,7 @@ def getProjectionMatrix(znear, zfar, fovX, fovY):
     right = tanHalfFovX * znear
     left = -right
 
-    P = torch.zeros(4, 4)
+    P = torch.zeros(4, 4, device="cuda")
 
     z_sign = 1.0
 
