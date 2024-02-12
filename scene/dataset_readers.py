@@ -31,6 +31,8 @@ from scene.gaussian_model import BasicPointCloud
 from utils.general_utils import PILtoTorch
 from tqdm import tqdm
 from plyfile import PlyData, PlyElement
+import math
+import copy
 
 class CameraInfo(NamedTuple):
     uid: int
@@ -228,6 +230,9 @@ def readColmapSceneInfo(path, images, eval, llffhold=8):
                            nerf_normalization=nerf_normalization,
                            ply_path=ply_path)
     return scene_info
+
+blender_data = True
+
 def generateCamerasFromTransforms(path, template_transformsfile, extension, maxtime):
     trans_t = lambda t : torch.Tensor([
     [1,0,0,0],
@@ -254,56 +259,65 @@ def generateCamerasFromTransforms(path, template_transformsfile, extension, maxt
         return c2w
     cam_infos = []
     # generate render poses and times
-    render_poses = torch.stack([pose_spherical(angle, -30.0, 4.0) for angle in np.linspace(-180,180,160+1)[:-1]], 0)
+    render_poses = torch.stack([pose_spherical(angle, -30.0, 4.0) for angle in np.linspace(-180,180,40+1)[:-1]], 0)
     render_times = torch.linspace(0,maxtime,render_poses.shape[0])
     with open(os.path.join(path, template_transformsfile)) as json_file:
         template_json = json.load(json_file)
-        try:
-            fovx = template_json["camera_angle_x"]
-        except:
-            fovx = focal2fov(template_json["fl_x"], template_json['w'])
-    print("hello!!!!")
-    # breakpoint()
+        fovx = template_json["camera_angle_x"]
     # load a single image to get image info.
     for idx, frame in enumerate(template_json["frames"]):
         cam_name = os.path.join(path, frame["file_path"] + extension)
         image_path = os.path.join(path, cam_name)
         image_name = Path(cam_name).stem
         image = Image.open(image_path)
+        w, h = image.size[0], image.size[1]
         im_data = np.array(image.convert("RGBA"))
-        image = PILtoTorch(image,(800,800))
+        image = PILtoTorch(image,(w, h))
         break
     # format information
     for idx, (time, poses) in enumerate(zip(render_times,render_poses)):
         time = time/maxtime
         matrix = np.linalg.inv(np.array(poses))
-        R = -np.transpose(matrix[:3,:3])
-        R[:,0] = -R[:,0]
-        T = -matrix[:3, 3]
-        fovy = focal2fov(fov2focal(fovx, image.shape[1]), image.shape[2])
-        FovY = fovy 
-        FovX = fovx
+        # R = -np.transpose(matrix[:3,:3])
+        # R[:,0] = -R[:,0]
+        # T = -matrix[:3, 3]
+
+        if blender_data:
+            matrix = np.array(poses)
+            matrix[:3, 1:3] *= -1
+            matrix = np.linalg.inv(matrix)
+            R = np.transpose(matrix[:3,:3])
+            T = matrix[:3, 3]
+
+            fovy = focal2fov(fov2focal(fovx, image.shape[1]), image.shape[2])
+            FovY = fovy 
+            FovX = fovx
+        else:
+            # We need to find correct coordinate ssystem transformation in here for our data
+            matrix = np.array(poses)
+            R = np.transpose(matrix[:3,:3])
+            T = matrix[:3, 3]
+            
+            FovY = focal2fov(1361, h)
+            FovX = focal2fov(1361, w)
+
         cam_infos.append(CameraInfo(uid=idx, R=R, T=T, FovY=FovY, FovX=FovX, image=image,
                             image_path=None, image_name=None, width=image.shape[1], height=image.shape[2],
                             time = time, mask=None))
     return cam_infos
+
 def readCamerasFromTransforms(path, transformsfile, white_background, extension=".png", mapper = {}):
     cam_infos = []
-
+    #white_background = True
     with open(os.path.join(path, transformsfile)) as json_file:
         contents = json.load(json_file)
-        try:
-            fovx = contents["camera_angle_x"]
-        except:
-            fovx = focal2fov(contents['fl_x'],contents['w'])
+        fovx = contents["camera_angle_x"]
+
         frames = contents["frames"]
         for idx, frame in enumerate(frames):
             cam_name = os.path.join(path, frame["file_path"] + extension)
             time = mapper[frame["time"]]
             matrix = np.linalg.inv(np.array(frame["transform_matrix"]))
-            R = -np.transpose(matrix[:3,:3])
-            R[:,0] = -R[:,0]
-            T = -matrix[:3, 3]
 
             image_path = os.path.join(path, cam_name)
             image_name = Path(cam_name).stem
@@ -316,16 +330,36 @@ def readCamerasFromTransforms(path, transformsfile, white_background, extension=
             norm_data = im_data / 255.0
             arr = norm_data[:,:,:3] * norm_data[:, :, 3:4] + bg * (1 - norm_data[:, :, 3:4])
             image = Image.fromarray(np.array(arr*255.0, dtype=np.byte), "RGB")
-            image = PILtoTorch(image,(800,800))
-            fovy = focal2fov(fov2focal(fovx, image.shape[1]), image.shape[2])
-            FovY = fovy 
-            FovX = fovx
+            yh = image.size[1]
+            xh = image.size[0]
+            image = PILtoTorch(image,(image.size[0], image.size[1]))
+
+            if blender_data:
+                matrix = np.array(frame["transform_matrix"])
+                matrix[:3, 1:3] *= -1
+                matrix = np.linalg.inv(matrix)
+                R = np.transpose(matrix[:3,:3])
+                T = matrix[:3, 3]
+
+                fovy = focal2fov(fov2focal(fovx, image.shape[1]), image.shape[2])
+                FovY = fovy
+                FovX = fovx
+            else:
+                # We need to find correct coordinate ssystem transformation in here for our data
+                matrix = np.array(frame["transform_matrix"])
+                R = np.transpose(matrix[:3,:3])
+                T = matrix[:3, 3]
+
+                focal = 1361
+                FovY = 2*math.atan(yh/(2*focal))
+                FovX = 2*math.atan(xh/(2*focal))
 
             cam_infos.append(CameraInfo(uid=idx, R=R, T=T, FovY=FovY, FovX=FovX, image=image,
                             image_path=image_path, image_name=image_name, width=image.shape[1], height=image.shape[2],
                             time = time, mask=None))
             
     return cam_infos
+    
 def read_timeline(path):
     with open(os.path.join(path, "transforms_train.json")) as json_file:
         train_json = json.load(json_file)

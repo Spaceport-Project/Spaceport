@@ -29,12 +29,9 @@ from utils.loader_utils import FineSampler, get_stamp_list
 import lpips
 from utils.scene_utils import render_training_image
 from time import time
-
+import copy
 import os
-print(os.environ.get('CUDA_HOME'))
-print(os.environ.get('LD_LIBRARY_PATH'))
-# calib_data = np.load("data/dynerf/cook_spinach_orig/poses_bounds.npy")
-#calib_data_LLFF = np.load("data/dynerf/cook_spinach_LLFF/poses_bounds.npy")
+
 
 to8b = lambda x : (255*np.clip(x.cpu().numpy(),0,1)).astype(np.uint8)
 
@@ -95,16 +92,6 @@ def scene_reconstruction(dataset, opt, hyper, pipe, testing_iterations, saving_i
             random_loader = True
         loader = iter(viewpoint_stack_loader)
     
-    
-    # dynerf, zerostamp_init
-    # breakpoint()
-    if stage == "coarse" and opt.zerostamp_init:
-        load_in_memory = True
-        # batch_size = 4
-        temp_list = get_stamp_list(viewpoint_stack,0)
-        viewpoint_stack = temp_list.copy()
-    else:
-        load_in_memory = False 
         
     for iteration in range(first_iter, final_iter+1):        
         if network_gui.conn == None:
@@ -131,18 +118,6 @@ def scene_reconstruction(dataset, opt, hyper, pipe, testing_iterations, saving_i
             gaussians.oneupSHdegree()
 
         # Pick a random Camera
-<<<<<<< HEAD
-
-        # dynerf's branch
-        if opt.dataloader and not load_in_memory:
-            try:
-                viewpoint_cams = next(loader)
-            except StopIteration:
-                print("reset dataloader into random dataloader.")
-                if not random_loader:
-                    viewpoint_stack_loader = DataLoader(viewpoint_stack, batch_size=opt.batch_size,shuffle=True,num_workers=32,collate_fn=list)
-                    random_loader = True
-=======
         if not viewpoint_stack:
             viewpoint_stack = scene.getTrainCameras()
             batch_size = int(opt.batch_size)
@@ -152,24 +127,11 @@ def scene_reconstruction(dataset, opt, hyper, pipe, testing_iterations, saving_i
             try:
                 viewpoint_cams = next(loader)
             except StopIteration:
-                print("reset dataloader")
                 batch_size = int(opt.batch_size)
->>>>>>> c006a2a5dbe81d963b422e07304a968cb863a091
                 loader = iter(viewpoint_stack_loader)
-
         else:
-            idx = 0
-            viewpoint_cams = []
-
-            while idx < batch_size :    
-                    
-                viewpoint_cam = viewpoint_stack.pop(randint(0,len(viewpoint_stack)-1))
-                if not viewpoint_stack :
-                    viewpoint_stack =  temp_list.copy()
-                viewpoint_cams.append(viewpoint_cam)
-                idx +=1
-            if len(viewpoint_cams) == 0:
-                continue
+            idx = randint(0, len(viewpoint_stack)-1)
+            viewpoint_cams = [viewpoint_stack[idx]]
         # print(len(viewpoint_cams))     
         # breakpoint()   
         # Render
@@ -248,7 +210,6 @@ def scene_reconstruction(dataset, opt, hyper, pipe, testing_iterations, saving_i
                 print("\n[ITER {}] Saving Gaussians".format(iteration))
                 scene.save(iteration, stage)
             if dataset.render_process:
-<<<<<<< HEAD
                 if (iteration < 1000 and iteration % 10 == 9) \
                     or (iteration < 3000 and iteration % 50 == 49) \
                         or (iteration < 60000 and iteration %  100 == 99) :
@@ -256,12 +217,6 @@ def scene_reconstruction(dataset, opt, hyper, pipe, testing_iterations, saving_i
                         render_training_image(scene, gaussians, [test_cams[iteration%len(test_cams)]], render, pipe, background, stage+"test", iteration,timer.get_elapsed_time(),scene.dataset_type)
                         render_training_image(scene, gaussians, [train_cams[iteration%len(train_cams)]], render, pipe, background, stage+"train", iteration,timer.get_elapsed_time(),scene.dataset_type)
                         # render_training_image(scene, gaussians, train_cams, render, pipe, background, stage+"train", iteration,timer.get_elapsed_time(),scene.dataset_type)
-=======
-                if (iteration < 1000 and iteration % 100 == 1) \
-                    or (iteration < 3000 and iteration % 500 == 1) \
-                        or (iteration < 10000 and iteration %  1000 == 1) \
-                            or (iteration < 60000 and iteration % 1000 ==1):
->>>>>>> c006a2a5dbe81d963b422e07304a968cb863a091
 
                     # total_images.append(to8b(temp_image).transpose(1,2,0))
             timer.start()
