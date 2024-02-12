@@ -382,8 +382,8 @@ def format_infos(dataset,split):
             time = dataset.image_times[idx]
             # matrix = np.linalg.inv(np.array(pose))
             R,T = dataset.load_pose(idx)
-            FovX = focal2fov(dataset.focal[0], image.shape[1])
-            FovY = focal2fov(dataset.focal[0], image.shape[2])
+            FovX = focal2fov(dataset.focal[0], image.shape[2])
+            FovY = focal2fov(dataset.focal[0], image.shape[1])
             cameras.append(CameraInfo(uid=idx, R=R, T=T, FovY=FovY, FovX=FovX, image=image,
                                 image_path=image_path, image_name=image_name, width=image.shape[2], height=image.shape[1],
                                 time = time))
@@ -422,7 +422,7 @@ def readHyperDataInfos(datadir,use_bg_points,eval):
                            )
 
     return scene_info
-def format_render_poses(poses,data_infos):
+def format_render_poses(poses, data_infos):
     cameras = []
     tensor_to_pil = transforms.ToPILImage()
     len_poses = len(poses)
@@ -437,17 +437,48 @@ def format_render_poses(poses,data_infos):
         pose[:3,:] = p[:3,:]
         # matrix = np.linalg.inv(np.array(pose))
         R = pose[:3,:3]
-        R = - R
-        R[:,0] = -R[:,0]
-        T = -pose[:3,3].dot(R)
+        T = pose[:3,3]
+        # R = - R
+        # R[:,0] = -R[:,0]
+        # # T = -T.dot(R)
+        # T[1:] = -T[1:]
         FovX = focal2fov(data_infos.focal[0], image.shape[2])
-        FovY = focal2fov(data_infos.focal[0], image.shape[1])
+        FovY = focal2fov(data_infos.focal[1], image.shape[1])
         cameras.append(CameraInfo(uid=idx, R=R, T=T, FovY=FovY, FovX=FovX, image=image,
                             image_path=image_path, image_name=image_name, width=image.shape[2], height=image.shape[1],
                             time = time))
     return cameras
 
-def readdynerfInfo(datadir,use_bg_points,eval, skip_grid_render):
+def format_equirec_render_poses(poses, img_size):
+    cameras = []
+    tensor_to_pil = transforms.ToPILImage()
+    len_poses = len(poses)
+    times = [i/len_poses for i in range(len_poses)]
+    image = np.array([]) #data_infos[0][0]
+    for idx, p in tqdm(enumerate(poses)):
+        # image = None
+        image_path = None
+        image_name = f"{idx}"
+        time = times[idx]
+        pose = np.eye(4)
+        pose[:3,:] = p[:3,:]
+        # matrix = np.linalg.inv(np.array(pose))
+        R = pose[:3,:3]
+        T = pose[:3,3]
+        # R = - R
+        # R[:,0] = -R[:,0]
+        # # T = -T.dot(R)
+        # T[1:] = -T[1:]
+       
+        FovY = 2.081562150742207 
+        FovX = 2.5716052760300308 
+        cameras.append(CameraInfo(uid=idx, R=R, T=T, FovY=FovY, FovX=FovX, image=image,
+                            image_path=image_path, image_name=image_name, width=img_size[0], height=img_size[1],
+                            time = time))
+    return cameras
+
+
+def readdynerfInfo(datadir,use_bg_points,eval, skip_grid_render, render_img_size):
     # loading all the data follow hexplane format
     # ply_path = os.path.join(datadir, "points3d.ply")
     ply_path = os.path.join(datadir, "point_cloud_downsampled.ply")
@@ -472,14 +503,17 @@ def readdynerfInfo(datadir,use_bg_points,eval, skip_grid_render):
     scene_bbox_max=[2.5, 2.0, 1.0],
     eval_index=0,
     skip_grid_render = skip_grid_render
-        )
+    )
   
 
 
     max_time = len([file for file in os.listdir(os.path.join(datadir,"cam01","images")) if file.endswith(".png") or file.endswith(".jpg") ])
 
     train_cam_infos = format_infos(train_dataset,"train")
-    val_cam_infos = format_render_poses(test_dataset.val_poses,test_dataset)
+    # val_cam_infos = format_render_poses(test_dataset.val_poses, test_dataset)
+    # assert render_img_size is not None
+    val_cam_infos = format_equirec_render_poses(test_dataset.val_poses, render_img_size) if render_img_size \
+                    else  format_render_poses(test_dataset.val_poses, test_dataset)
     nerf_normalization = getNerfppNorm(train_cam_infos)
 
     pcd = fetchPly(ply_path)

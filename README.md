@@ -33,8 +33,8 @@ Colab demo:[![Open In Colab](https://colab.research.google.com/assets/colab-badg
 ## Environmental Setups
 Please follow the [3D-GS](https://github.com/graphdeco-inria/gaussian-splatting) to install the relative packages.
 ```bash
-git clone https://github.com/hustvl/4DGaussians
-cd 4DGaussians
+git clone https://github.com/Spaceport-Project/Spaceport
+cd Spaceport
 git submodule update --init --recursive
 conda create -n Gaussians4D python=3.7 
 conda activate Gaussians4D
@@ -42,7 +42,6 @@ conda activate Gaussians4D
 pip install -r requirements.txt
 pip install -e submodules/depth-diff-gaussian-rasterization
 pip install -e submodules/simple-knn
-pip install "git+https://github.com/facebookresearch/pytorch3d.git@stable"
 ```
 In our environment, we use pytorch=1.13.1+cu116.
 ## Data Preparation

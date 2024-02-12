@@ -49,6 +49,8 @@ class ModelParams(ParamGroup):
         self.sh_degree = 3
         self._source_path = ""
         self._model_path = ""
+        # self._model_path = "output/spaceport/12-13-23/101-150_lum90_bayer_png_30fps_10fram_npy_batch2_new"
+
         self._images = "images"
         self._resolution = -1
         self._white_background = True

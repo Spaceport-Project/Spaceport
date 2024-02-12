@@ -12,6 +12,7 @@ import numpy as np
 import random
 import os
 import torch
+torch.multiprocessing.set_start_method('spawn')
 from random import randint
 from utils.loss_utils import l1_loss, ssim, l2_loss, lpips_loss
 from gaussian_renderer import render, network_gui
@@ -124,7 +125,7 @@ def scene_reconstruction(dataset, opt, hyper, pipe, testing_iterations, saving_i
         if not viewpoint_stack:
             viewpoint_stack = scene.getTrainCameras()
             batch_size = int(opt.batch_size)
-            viewpoint_stack_loader = DataLoader(viewpoint_stack, batch_size=batch_size,shuffle=True,num_workers=32,collate_fn=list)
+            viewpoint_stack_loader = DataLoader(viewpoint_stack, batch_size=batch_size,shuffle=True,num_workers=0,collate_fn=list)
             loader = iter(viewpoint_stack_loader)
         if opt.dataloader:
             try:

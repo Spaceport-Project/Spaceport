@@ -12,6 +12,7 @@ OptimizationParams = dict(
     pruning_interval = 8000,
     percent_dense = 0.01,
     # opacity_reset_interval=30000
+    batch_size = 4,
 
 )
 

@@ -107,9 +107,9 @@ def viewmatrix2(z, up, pos):
    
     vec1 = normalize(np.cross(vec2, vec0))
     cw = np.stack([vec0, vec1, vec2])
-    r = Rot.from_euler('x', 180,  degrees=True)
-    cw = np.matmul(r.as_matrix(), cw)
-    pos = np.matmul(-pos, cw)
+    # r = Rot.from_euler('x', 180,  degrees=True)
+    # cw = np.matmul(r.as_matrix(), cw)
+    # pos = np.matmul(-pos, cw)
 
 
     m = np.eye(4)
@@ -132,12 +132,17 @@ def get_grid(near_fars):
     # center pose
     # c2w = average_poses(c2ws_all)
     c2w = np.eye(4)
-    
+    # c2w[:,1] = -c2w[:,1]
+    # c2w[:,2] = -c2w[:,2]
+    # c2w = -c2w
     r = Rot.from_euler('yz', (30, 5),  degrees=True)
     #print(r.as_matrix())
     c2w_r = np.matmul(r.as_matrix(), c2w[:3,:3])
     up = c2w_r[:3,1]
     z = c2w_r[:3,2]
+   
+    # up = c2w[:3,1]
+    # z = c2w[:3,2]
    
     render_poses = render_grid(
         z, up
@@ -146,16 +151,16 @@ def get_grid(near_fars):
 
 def render_grid(z1, up):
     render_poses = []
-    GRID_SIZE_X = 10
-    GRID_SIZE_Z = 10
-    # min_x, max_x = -1.0 , 1.0
-    # min_z, max_z = -2., 0.
-    min_x, max_x = -2 , 3
-    min_z, max_z = 0., 3.
+    GRID_SIZE_X = 20
+    GRID_SIZE_Z = 20
+    # min_x, max_x = -5 , 5
+    # min_z, max_z = -5, 5
+    min_x, max_x = -5, 5
+    min_z, max_z = 0, 10
 
     step_x = (max_x - min_x)/GRID_SIZE_X
     step_z = (max_z - min_z)/GRID_SIZE_Z
-    for j, z in enumerate(np.arange(max_z, min_z , -step_z)):
+    for j, z in enumerate(np.arange(min_z, max_z , step_z)):
         for i, x in enumerate(np.arange(max_x, min_x, -step_x)):
             c = np.array([x, 0, z])
             
@@ -163,7 +168,7 @@ def render_grid(z1, up):
             # z1 = np.array([0.0, 0.0, 1.0])
             # z1 = c2w[:3,2]
 
-            render_poses.append(viewmatrix2(z1, up, c))
+            render_poses.append(viewmatrix(z1, up, c))
 
      
     return render_poses
@@ -366,6 +371,7 @@ class Neural3D_NDC_Dataset(Dataset):
         H, W, focal = poses[0, :, -1]
         focal = focal / self.downsample
         self.focal = [focal, focal]
+        # self.focal = [self.img_wh[0]/2, self.img_wh[1]]
         poses = np.concatenate([poses[..., 1:2], -poses[..., :1], poses[..., 2:4]], -1)
         # poses, _ = center_poses(
         #     poses, self.blender2opencv
@@ -451,6 +457,7 @@ class Neural3D_NDC_Dataset(Dataset):
                 image_paths.append(os.path.join(image_path,path))
                 pose = np.array(self.poses_all[index])
                 R = pose[:3,:3]
+                T = pose[:3,3]
                 R = -R
                 R[:,0] = -R[:,0]
                 T = -pose[:3,3].dot(R)
