@@ -1,0 +1,151 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sample Picture</title>
+    <link rel="stylesheet" href="https://d2nu66bxxofnfe.cloudfront.net/demo/src/css/pannellum.css"/>
+    <link rel ="stylesheet" href = "https://d2nu66bxxofnfe.cloudfront.net/demo/loading.css" />
+ 
+    <!-- <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.js"></script> -->
+    <script type="text/javascript" src="https://d2nu66bxxofnfe.cloudfront.net/demo/src/js/libpannellum.js"></script>
+    <script type="text/javascript" src="https://d2nu66bxxofnfe.cloudfront.net/demo/src/js/pannellum.js"></script>
+
+    <link href="https://netdna.bootstrapcdn.com/font-awesome/3.2.1/css/font-awesome.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
+    <style>
+    #panorama {
+        width: 100%;
+        height: 100%;
+        position:absolute;
+    }
+    html {
+        overflow:hidden;
+    }
+    body {
+        margin:0px;
+    }
+     #controls {
+        position: absolute;
+        z-index: 2;
+        text-align: center;
+        width: 100%;
+        padding-bottom: 3px;
+        bottom: 8%;
+        left: 30%;
+    }
+    .ctrl {
+        padding: 8px 5px;
+        width: 30px;
+        text-align: center;
+        background: rgba(200, 200, 200, 0.8);
+        display: inline-block;
+        cursor: pointer;
+        margin-right: 10px;
+        margin-bottom: 15px;
+        
+    }
+    .ctrl:hover {
+        background: rgba(200, 200, 200, 1);
+    }
+
+
+    .extra-info {
+        display: none;
+        line-height: 30px;
+        font-size: 12px;
+        position: absolute;
+        top: 0;
+        left: 50px;
+     
+    }
+
+    .info:hover .extra-info {
+        display: block;
+    }
+
+    .info {
+        font-size: 20px;
+        padding-left: 5px;
+        width: 20px;
+        border-radius: 15px;
+        z-index: 2;
+        position: fixed;
+        left: 5%;
+        top: 80%;
+        color: red;
+    }
+
+    .info:hover {
+        background-color: white;
+        padding: 0 0 0 5px;
+        width: 315px;
+        height: 120px;
+        text-align: left !important;
+        z-index: 99;
+    }
+
+    .pnlm-about-msg {
+       visibility: hidden;
+        a {
+            visibility: hidden;
+          }
+      }
+    </style>
+
+
+
+</head>
+<body>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+
+
+<script src="https://d2nu66bxxofnfe.cloudfront.net/demo/src/js/progressbar.js"></script>
+<!-- <input type="radio" name="foo" value="1080p" checked> 1080p </input>
+<input type="radio" name="foo" value="2160p"> 2160p </input> -->
+<div id="panorama">
+   
+    <div class="col-md-12">
+     
+      
+    </div>
+
+  
+ 
+</div>
+
+</div>
+
+
+
+<script>
+
+
+
+var viewer = pannellum.viewer('panorama', { 'scenes': {}, 'autoLoad': true, 'showFullscreenCtrl': true, 'showZoomCtrl': true } );
+
+
+var pitch = 0, yaw = 90, hfov = 150;
+viewer.addScene('0', {
+        "type": "equirectangular",
+        // "panorama": "./2Hs6E.jpg"
+        "panorama": "./0_0.png"   
+        });
+
+
+viewer.loadScene("0");
+viewer.setPitch(pitch, 0);
+viewer.setYaw(yaw, 0);
+viewer.setHfov(hfov, 0);
+
+
+
+
+
+
+
+
+</script>
+
+</body>
+</html>

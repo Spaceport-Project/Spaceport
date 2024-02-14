@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Video.js Playlist</title>
+        <link href="https://unpkg.com/video.js/dist/video-js.min.css" rel="stylesheet">
+        <script src="https://unpkg.com/video.js/dist/video.js"></script>
+        <script src="https://unpkg.com/videojs-playlist/dist/videojs-playlist.min.js"></script>
+      </head>
+<body>
+
+<video id="my-video" class="video-js" controls preload="auto" width="640" height="360" data-setup="{}">
+  <source src="../media/faruk_teknopark_v3/output_grid_0.mp4" type='video/mp4'>
+  <!-- <source src="video2.mp4" type='video/mp4'> -->
+  <!-- Add more video sources as needed -->
+</video>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const length = 10;
+    const width = 10;
+    const height = 1;
+    const area = length * width;
+    const volume = length * width * height;
+    var index_init = 67;
+    var index= index_init;
+    var h = Math.floor(index / area);
+
+    var player = videojs('my-video');
+    var list = [];
+    var basepath = '../media/faruk_teknopark_v3'
+    for (let i = 0 ; i < volume ; i++) {
+            list.push({
+            sources: [{
+                src: basepath + "/output_grid_" + i + ".mp4",
+                type: 'video/mp4'
+            }],
+            });
+    
+
+
+    }
+    player.playlist(list);
+    player.play();
+    player.on('ended', function () {
+      customPlaylistTransition(player);
+    });
+
+    // Custom function to handle the transition between videos
+// function customPlaylistTransition(player, ind, time) {
+//     // Get the last frame of the current video
+//     // var currentTime = player.currentTime();
+//     // var ind = player.playlist.currentItem();
+//     player.pause();
+
+//     // Capture a snapshot of the current frame
+//     player.snapshot((err, snapshot) => {
+//         if (err) {
+//             console.error('Error capturing snapshot:', err);
+//             return;
+//         }
+
+//         // Display the last frame
+//         var lastFrameImage = document.createElement('img');
+//         lastFrameImage.src = snapshot;
+//         lastFrameImage.style.width = '100%';
+//         lastFrameImage.style.height = '100%';
+//         player.el().appendChild(lastFrameImage);
+
+//         // Wait for a brief moment to display the last frame
+//         setTimeout(function () {
+//             // Remove the last frame element
+//             player.el().removeChild(lastFrameImage);
+
+//             // // Move to the next playlist item
+//             // player.playlist.next();
+
+//             // // Load the new playlist item
+//             // player.load(player.playlist.currentItem());
+
+//             // // Set the current time and play
+//             // player.currentTime(currentTime);
+
+//             // player.el().removeChild(lastFrameImage);
+
+//             // Move to the next playlist item
+//             player.playlist.currentItem(ind);
+//             // setTimeout(()=> {player.currentTime(time);}, 1);
+//             player.currentTime(time);
+//             player.play();
+
+//         }, 10); // Adjust the delay (in milliseconds) as needed
+//     });
+// }
+
+
+//     function customPlaylistTransition(player, ind, time) {
+//     // Pause the player to capture the last frame
+//     player.pause();
+
+//     // Create a canvas and context
+//     var lastFrameCanvas = document.createElement('canvas');
+//     lastFrameCanvas.width = player.width();
+//     lastFrameCanvas.height = player.height();
+//     var lastFrameContext = lastFrameCanvas.getContext('2d');
+
+//     // Create a temporary video element
+//     var tempVideo = document.createElement('video');
+//     tempVideo.src = player.playlist()[ind].sources[0].src;
+
+//     // Listen for the canplay event to ensure the video is ready
+//     tempVideo.addEventListener('canplay', function () {
+//         // Set the currentTime to the desired time
+//         tempVideo.currentTime = time;
+
+//         // Wait for the video to seek to the specified time
+//         tempVideo.addEventListener('seeked', function () {
+//             // Draw the last frame onto the canvas
+//             lastFrameContext.drawImage(tempVideo, 0, 0, lastFrameCanvas.width, lastFrameCanvas.height);
+
+//             // Display the last frame
+//             var lastFrameImage = document.createElement('img');
+//             lastFrameImage.src = lastFrameCanvas.toDataURL();
+//             lastFrameImage.style.width = '100%';
+//             lastFrameImage.style.height = '100%';
+//             player.el().appendChild(lastFrameImage);
+
+//             // Wait for a brief moment to display the last frame
+//             setTimeout(function () {
+//                 // Remove the last frame element
+//                 player.el().removeChild(lastFrameImage);
+
+//                 // Move to the next playlist item
+//                 player.playlist.currentItem(ind);
+//                 player.currentTime(time);
+//             }, 1); // Adjust the delay (in milliseconds) as needed
+//         });
+
+//         // Attempt to play the video to trigger the events
+//         tempVideo.play();
+//     });
+// }
+
+
+//     function customPlaylistTransition(player, ind, time) {
+//     // Get the last frame of the current video
+//     var lastFrameCanvas = document.createElement('canvas');
+//     lastFrameCanvas.width = player.width();
+//     lastFrameCanvas.height = player.height();
+//     var lastFrameContext = lastFrameCanvas.getContext('2d');
+
+//     // Draw the current video element onto the canvas
+//     lastFrameContext.drawImage(player.el().getElementsByTagName('video')[0], 0, 0, lastFrameCanvas.width, lastFrameCanvas.height);
+
+//     // Display the last frame
+//     var lastFrameImage = document.createElement('img');
+//     lastFrameImage.src = lastFrameCanvas.toDataURL();
+//     lastFrameImage.style.width = '100%';
+//     lastFrameImage.style.height = '100%';
+//     player.el().appendChild(lastFrameImage);
+
+//     // Wait for a brief moment to display the last frame
+//     setTimeout(function () {
+//         // Remove the last frame element
+//         player.el().removeChild(lastFrameImage);
+
+//         // Move to the next playlist item
+//         player.playlist.currentItem(ind);
+//         player.currentTime(time);
+//     }, 1); // Adjust the delay (in milliseconds) as needed
+// }
+
+//     function customPlaylistTransition(player, ind, time) {
+//     // Get the last frame of the current video
+//     var videoSource = player.playlist()[ind].sources[0].src;
+    
+//     var lastFrameCanvas = document.createElement('canvas');
+//     lastFrameCanvas.width = player.width();
+//     lastFrameCanvas.height = player.height();
+//     var lastFrameContext = lastFrameCanvas.getContext('2d');
+
+//     var tempVideo = document.createElement('video');
+//     tempVideo.src = videoSource;
+//     tempVideo.addEventListener('loadedmetadata', function() {
+//         tempVideo.currentTime = time;
+//         tempVideo.play();
+//         tempVideo.addEventListener('seeked', function() {
+//             lastFrameContext.drawImage(tempVideo, 0, 0, lastFrameCanvas.width, lastFrameCanvas.height);
+
+//             // Display the last frame
+//             var lastFrameImage = document.createElement('img');
+//             lastFrameImage.src = lastFrameCanvas.toDataURL();
+//             lastFrameImage.style.width = '100%';
+//             lastFrameImage.style.height = '100%';
+//             player.el().appendChild(lastFrameImage);
+
+//             // Wait for a brief moment to display the last frame
+//             setTimeout(function () {
+//                 // Remove the last frame element
+//                 player.el().removeChild(lastFrameImage);
+
+//                 // Move to the next playlist item
+//                 player.playlist.currentItem(ind);
+//                 player.currentTime(time);
+//             }, 1); // Adjust the delay (in milliseconds) as needed
+//         });
+//     });
+// }
+
+    // Custom function to handle the transition between videos
+    function customPlaylistTransition(player, ind, time) {
+      // Get the last frame of the current video
+    //   player.pause();
+
+      
+      var lastFrameCanvas = document.createElement('canvas');
+      lastFrameCanvas.width = player.width();
+      lastFrameCanvas.height = player.height();
+      var lastFrameContext = lastFrameCanvas.getContext('2d');
+
+      var videoElement = player.el().querySelector('video');
+
+    // Draw the current frame onto the canvas
+    // ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+
+    lastFrameContext.drawImage(videoElement, 0, 0, lastFrameCanvas.width, lastFrameCanvas.height);
+
+    //   lastFrameContext.drawImage(player.el().getElementsByTagName('video')[0], 0, 0, lastFrameCanvas.width, lastFrameCanvas.height);
+
+      // Display the last frame
+      var lastFrameImage = document.createElement('img');
+      lastFrameImage.src = lastFrameCanvas.toDataURL();
+      lastFrameImage.style.width = '100%';
+      lastFrameImage.style.height = '100%';
+      player.el().appendChild(lastFrameImage);
+
+      // Wait for a brief moment to display the last frame
+      setTimeout(function () {
+        // Remove the last frame element
+        player.el().removeChild(lastFrameImage);
+
+        // Move to the next playlist item
+        player.playlist.currentItem(ind);
+        // setTimeout(()=> {player.currentTime(time);}, 1);
+        player.currentTime(time);
+        // player.play();
+       
+      }, 1); // Adjust the delay (in milliseconds) as needed
+
+    }
+    
+window.addEventListener('keydown', function(event) {
+
+
+    var key = event.key; //findKey(pitch, yaw - 90, event.key);
+    console.log(key);
+    var currentTime = player.currentTime();
+    var prev = index;
+
+    switch (key) {
+        case "j":
+            {               
+                
+                
+            const tmp = index - 1;  
+            index = (tmp + 1) % length == 0 ? index: tmp;
+            // const tmp = index + length;
+            //   index = tmp >= ( h + 1) * area ? index: tmp;
+                
+                
+
+            } 
+                
+            break;
+
+        case "l":
+            {
+            // const tmp = index - length;
+            //   index = tmp < h * area ? index: tmp; 
+                const tmp = index + 1;  
+                index = tmp % length == 0 ? index: tmp;
+            }
+
+            break;
+
+        case "i":
+            {
+            //   const tmp = index + 1;  
+            //   index = tmp % length == 0 ? index: tmp;
+                const tmp = index - length;
+                index = tmp < h * area ? index: tmp; 
+            
+            
+            }
+            break;
+
+        case "k":
+            {
+            // const tmp = index - 1;  
+            //   index = (tmp + 1) % length == 0 ? index: tmp;
+            const tmp = index + length;  
+            index = tmp >= ( h + 1) * area ? index: tmp;
+            
+        
+            }
+
+            break;
+
+        case "u":
+            {
+                h++;
+                const tmp = index + area;
+                if (h < height) index = tmp;
+                else h = height -1;
+                
+            
+            }
+            break;
+
+        case "h":
+            {
+                h--;
+                const tmp = index - area;
+                if (h < 0) h = 0;
+                else index = tmp;
+                
+
+
+            }
+
+            break;
+
+    
+
+        
+        default:
+        return;
+
+
+
+
+    }
+
+    console.log(index);
+    if (prev !== index) {
+        
+        customPlaylistTransition(player, index, currentTime);
+        //   setTimeout(()=> {player.currentTime(currentTime);}, 1);
+    }
+
+
+
+});
+    
+    
+  });
+</script>
+
+</body>
+</html>

@@ -127,9 +127,9 @@
          
         </span>
       </div>
-    <video id="panorama" class="video-js vjs-big-play-centered " controls="" preload="auto" autoplay="true" width="1440px" height="720px"
+    <video id="panorama" class="video-js vjs-big-play-centered " controls="" preload="metadata" autoplay="true" width="1440px" height="720px" poster="../media/faruk_teknopark_v3/output_grid_0.jpg"></video>
     crossorigin="anonymous" >
-        <!-- <source src="./media/faruk_teknopark_v1/output_grid_16.mp4" type="video/mp4" /> -->
+        <!-- <source src="../media/faruk_teknopark_v3/output_grid_16.mp4" type="video/mp4" /> -->
         <p class="vjs-no-js">
             To view this video please enable JavaScript, and consider upgrading to
             a web browser that <a href="http://videojs.com/html5-video-support/"
@@ -185,6 +185,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
 });
 
+var player = videojs('panorama');
+
+
 const length = 10;
 const width = 10;
 const height = 1;
@@ -195,9 +198,9 @@ var index= index_init;
 var h = Math.floor(index / area);
 
 
-var basepath = "../media/faruk_teknopark_13-12-2023";
+var basepath = "../media/faruk_teknopark_perspective_nobgrd_03-01-2024"
 
-var player = videojs('panorama');
+
 
 var list = [];
 for (let i = 0 ; i < volume ; i++) {
@@ -205,10 +208,15 @@ list.push({
   sources: [{
     src: basepath + "/output_grid_" + i + ".mp4",
     type: 'video/mp4'
-  }]});
+  }]
+ 
+});
+  
 
 
 }
+
+var player = videojs('panorama');
 
 player.playlist(list);
 
@@ -219,6 +227,7 @@ player.playlist.currentItem(index);
 player.requestFullscreen();
 
 player.on('ended', function (){
+    // player.poster(player.currentSource().poster);
     console.log("ended", index)
    
     if (index < 0) player.playlist.currentItem(0);
@@ -226,6 +235,7 @@ player.on('ended', function (){
 
 
 })
+
 
 window.addEventListener('keydown', function(event) {
 
@@ -255,7 +265,7 @@ window.addEventListener('keydown', function(event) {
           {
             // const tmp = index - length;
             //   index = tmp < h * area ? index: tmp; 
-               const tmp = index + 1;  
+              const tmp = index + 1;  
               index = tmp % length == 0 ? index: tmp;
           }
 
@@ -322,9 +332,8 @@ window.addEventListener('keydown', function(event) {
    
     console.log(index);
     if (prev !== index) {
-    player.playlist.currentItem(index);
-
-    setTimeout(()=> {player.currentTime(currentTime);}, 1);
+        player.playlist.currentItem(index);
+        setTimeout(()=> {player.currentTime(currentTime);}, 1);
     }
 
 

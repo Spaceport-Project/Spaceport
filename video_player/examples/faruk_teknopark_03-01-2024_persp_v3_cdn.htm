@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title> Teknopark Demo v3 03-01-2024</title>
+  
+    <!-- <link rel="stylesheet" href="https://d2nu66bxxofnfe.cloudfront.net/demo/src/css/pannellum.css"> -->
+    <link rel="icon" href="./spaceport_logo.png" type="image/png">
+
+    <!-- <script type="text/javascript" src="https://cdn.pannellum.org/2.5/pannellum.js"></script> -->
+
+    <link href="https://d2nu66bxxofnfe.cloudfront.net/demo/src/css/video-js.css" rel="stylesheet"
+      type="text/css">
+    <script src="https://vjs.zencdn.net/8.0.4/video.min.js"></script>
+
+    <!-- <script src="https://d2nu66bxxofnfe.cloudfront.net/demo/src/js/videojs-pannellum-plugin.js"></script> -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
+    <!-- <script src="https://d2nu66bxxofnfe.cloudfront.net/demo/src/js/videojs-playlist.js"></script> -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
+    <link href="https://netdna.bootstrapcdn.com/font-awesome/3.2.1/css/font-awesome.css" rel="stylesheet">
+
+
+    
+
+    <style>
+        body, html {
+       margin: 0;
+       padding: 0;
+       height: 100%;
+       }
+       .player {
+       /* display: flex;
+       justify-content: center; */
+       position: relative;
+       width: 100%;
+       height: 100%;
+       }
+       /* .content {
+       display: flex;
+       justify-content: center;
+       position: relative;
+       } */
+       .video-js {
+       position: absolute;
+       }
+       .js-video-hidden {
+       z-index: -1;
+       }
+
+       .vjs-has-started .vjs-loading-spinner {
+           display: none !important;
+       }
+       #panorama {
+       width: 100%;
+       height: 100%;
+       }
+
+     
+
+
+       .arrow {
+           transition: fill 0.3s; 
+       }
+
+       .arrow:hover {
+           fill: #ff0000; 
+           cursor: pointer; 
+       }
+
+       .extra-info {
+           display: none;
+           line-height: 30px;
+           font-size: 12px;
+           position: absolute;
+           top: 0;
+           left: 50px;
+       
+       }
+
+       .info:hover .extra-info {
+           display: block;
+       }
+
+       .info {
+           font-size: 20px;
+           padding-left: 5px;
+           width: 20px;
+           border-radius: 15px;
+           z-index: 2;
+           position: fixed;
+           left: 5%;
+           top: 80%;
+           color: red;
+       }
+
+       .info:hover {
+           background-color: white;
+           padding: 0 0 0 5px;
+           width: 315px;
+           height: 120px;
+           text-align: left !important;
+           z-index: 99;
+       }
+       .icon {
+       
+       position: absolute; 
+       bottom: 70px;
+       right: 70px;
+       cursor: default;
+       z-index: 2;
+
+      
+       }
+
+
+       .arrow {
+           transition: fill 0.3s; 
+       }
+
+       .arrow:hover {
+           fill: #ff0000; 
+           cursor: pointer; 
+       }
+
+       #canvas {
+           position: absolute;
+           top: 0;
+           left: 0;
+           display:  none;
+       }
+
+
+   </style>
+
+
+
+</head>
+<body>
+
+   <div class="player">
+       <div class="info">
+           <i class="icon-info-sign"></i>
+     
+           <span class="extra-info">
+             Use "I-J-K-L" or buttons on the screen to move through the scene. <br>
+            
+           </span>
+         </div>
+        
+       <video id="panorama" class="js-video js-video video-js vjs-big-play-centered" style="display: none;" width="1440px" height="720px" controls playsinline >
+           <!-- <source src="./media/faruk_teknopark_v1/output_grid_16.mp4" type="video/mp4" /> -->
+           <p class="vjs-no-js">
+               To view this video please enable JavaScript, and consider upgrading to
+               a web browser that <a href="http://videojs.com/html5-video-support/"
+               target="_blank">supports HTML5 video</a>
+           </p>
+       </video>
+       <canvas id="canvas" ></canvas>
+       <div class= "icon "  id="svg-container"></div>
+   </div>
+
+
+
+</div>
+<script>
+
+const options = {
+ autoSetup: false,
+ preload: 'metadata',
+ autoplay: false,
+ muted:"muted",
+ loadingSpinner: true,
+ html5: {
+   nativeControlsForTouch: false,
+   nativeAudioTracks: false,
+   nativeVideoTracks: true,
+   hls: {
+     limitRenditionByPlayerDimensions: false,
+     smoothQualityChange: true,
+     bandwidth: 6194304,
+     overrideNative: true
+   }
+ }
+}
+
+const grid_length = 10;
+const grid_width = 10;
+const grid_height = 1;
+const area = grid_length * grid_width;
+const volume = grid_length * grid_width * grid_height;
+var index_init = 60;
+var index= index_init;
+var prev_index = index_init;
+var h = Math.floor(index / area);
+var basepath = "https://d223v4e7dt6i6.cloudfront.net/faruk_teknopark_03-01-2024_v2";
+var players= {};
+var cl = document.getElementsByClassName('player');
+var currentTime = 0;
+
+
+let array= createVolumeXYZ(index, 3, h);
+
+var repeating = false;
+var repeatRateTimer = null;
+var repeatRate = 800;
+var repeatCounter = 0;
+var startTime = [];
+var repeating = false;
+var repeatRateTimer = null;
+
+const isVideoPlaying = video => !!(video.currentTime > 0 && !video.paused && !video.ended && video.readyState > 2);
+
+createVideoDOMElementsFromArray(cl[0], array);
+var canvas = document.getElementById('canvas');
+
+applyTransition()
+
+$(document).ready( ()=> {
+    fetch('./arrows.svg')
+       .then(response => response.text())
+       .then(svgData => {
+           
+            $("#svg-container").html(svgData) ; 
+            var interval, timeout;
+           
+
+            $("#right-arrow").on({
+                mousedown : async (event) => {
+                    event.preventDefault(); 
+
+                    startTime.push(new Date());
+                    if (startTime.length == 2) {
+                        let timeDiff = startTime[1] -  startTime[0];
+                        timeDiff = Math.round(timeDiff)
+                        if (timeDiff < repeatRate){
+                            await new Promise(r => setTimeout(r, repeatRate-timeDiff ));
+
+                        }
+                       startTime.length=0;
+                    }
+
+                    interval = window.setInterval(function() {
+                        let e = $.Event('keydown'); 
+                        e.key ="l";
+                        $(document).trigger(e); 
+
+                    }, 1);      
+               
+        
+                },
+            
+                mouseup : (event)=> {
+                    window.clearInterval(interval);
+                    startTime.length=0;
+                    let e = $.Event('keyup'); 
+                    $(document).trigger(e); 
+                   
+                }
+           
+
+            });
+            $("#left-arrow").on({
+                mousedown : async (event) => {
+                    event.preventDefault(); 
+
+                    startTime.push(new Date());
+                    if (startTime.length == 2) {
+                        let timeDiff = startTime[1] -  startTime[0];
+                        timeDiff = Math.round(timeDiff)
+                        if (timeDiff < repeatReate){
+                            await new Promise(r => setTimeout(r, repeatReate-timeDiff ));
+
+                        }
+                       startTime.length=0;
+                    }
+
+                    interval = window.setInterval(function() {
+                        let e = $.Event('keydown'); 
+                        e.key ="j";
+                        $(document).trigger(e); 
+
+                    }, 1);      
+               
+        
+                },
+            
+                mouseup : (event)=> {
+                    window.clearInterval(interval);
+                    startTime.length=0;
+                    let e = $.Event('keyup'); 
+                    $(document).trigger(e); 
+                
+                }
+           
+
+            });
+            $("#up-arrow").on({
+                mousedown : async (event) => {
+                    event.preventDefault(); 
+
+                    startTime.push(new Date());
+                    if (startTime.length == 2) {
+                        let timeDiff = startTime[1] -  startTime[0];
+                        timeDiff = Math.round(timeDiff)
+                        if (timeDiff < repeatReate){
+                            await new Promise(r => setTimeout(r, repeatReate-timeDiff ));
+
+                        }
+                       startTime.length=0;
+                    }
+
+                    interval = window.setInterval(function() {
+                        let e = $.Event('keydown'); 
+                        e.key ="i";
+                        $(document).trigger(e); 
+
+                    }, 1);      
+               
+        
+                },
+            
+                mouseup : (event)=> {
+                    window.clearInterval(interval);
+                    startTime.length=0;
+                    let e = $.Event('keyup'); 
+                    $(document).trigger(e); 
+                
+                }
+           
+
+            });
+            $("#down-arrow").on({
+                mousedown : async (event) => {
+                    event.preventDefault(); 
+                    startTime.push(new Date());
+                    if (startTime.length == 2) {
+                        let timeDiff = startTime[1] -  startTime[0];
+                        timeDiff = Math.round(timeDiff)
+                        if (timeDiff < repeatRate){
+                            await new Promise(r => setTimeout(r, repeatReate-timeDiff ));
+
+                        }
+                       startTime.length=0;
+                    }
+
+                    interval = window.setInterval(function() {
+                        let e = $.Event('keydown'); 
+                        e.key ="k";
+                        $(document).trigger(e); 
+
+                    }, 1);      
+               
+        
+                   
+                },
+            
+                mouseup : (event)=> {
+                    window.clearInterval(interval);
+                    startTime.length=0;
+                    let e = $.Event('keyup'); 
+                    $(document).trigger(e); 
+                
+                }
+           
+
+            });
+            $("#middle").on("click", () => {
+                let e = $.Event('keydown'); 
+                e.key ="o";
+                $(document).trigger(e); 
+
+            });
+
+            
+            // $("#right-arrow").on("click", () => {
+            //     let e = $.Event('keydown'); 
+            //     e.key ="l";
+            //     $(document).trigger(e); 
+
+            // });
+            // $("#left-arrow").on("click", () => {
+            //     let e = $.Event('keydown'); 
+            //     e.key ="j";
+            //     $(document).trigger(e); 
+
+            // });
+            // $("#up-arrow").on("click", () => {
+            //     let e = $.Event('keydown'); 
+            //     e.key ="i";
+            //     $(document).trigger(e); 
+
+            // });
+            // $("#down-arrow").on("click", () => {
+            //     let e = $.Event('keydown'); 
+            //     e.key ="k";
+            //     $(document).trigger(e); 
+
+            // });
+            // $("#middle").on("click", () => {
+            //     let e = $.Event('keydown'); 
+            //     e.key ="o";
+            //     $(document).trigger(e); 
+
+            // });
+            
+
+       
+
+
+
+        })
+       .catch(error => console.error(error));
+
+
+    $(document).keydown( function(event) {
+        event.preventDefault();
+        // console.log("repeat counter:", repeatCounter);
+        // repeatCounter+=1;
+        if(repeating == true) {
+            if(repeatRateTimer == null) {
+
+                repeatRateTimer = setTimeout(function () {
+                    repeating = false;
+                    clearTimeout(repeatRateTimer);
+                    repeatRateTimer = null;
+                }, repeatRate);
+            }
+            return;
+        }
+
+        repeating = true;
+
+        var key = event.key; 
+        console.log(key);    
+    
+        currentTime = players[index].currentTime();
+        prev_index = index;    
+        
+        switch (key) {
+            case "j":
+                {                  
+                    const tmp = index - 1;  
+                    index = (tmp + 1) % grid_length == 0 ? index: tmp;
+                
+                } 
+                    
+                break;
+
+            case "l":
+                {
+                    const tmp = index + 1;  
+                    index = tmp % grid_length == 0 ? index: tmp;
+                }
+
+                break;
+
+            case "i":
+                {
+                    const tmp = index - grid_length;
+                    index = tmp < h * area ? index: tmp; 
+                
+                }
+                break;
+
+            case "k":
+                {
+                
+                    const tmp = index + grid_length;  
+                    index = tmp >= ( h + 1) * area ? index: tmp;
+                
+                }
+
+                break;
+
+            case "u":
+                {
+                    h++;
+                    const tmp = index + area;
+                    if (h < height) index = tmp;
+                    else h = height -1;
+                   
+                }
+                break;
+
+            case "h":
+                {
+                    h--;
+                    const tmp = index - area;
+                    if (h < 0) h = 0;
+                    else index = tmp;
+    
+                }
+
+                break;
+            case "o":
+                {
+                    index = index_init; 
+                }
+
+                break;
+
+
+            
+            default:
+            return;
+
+
+
+
+        }
+
+    
+    
+
+        if (prev_index !== index) {
+            
+
+            console.log(index);
+            
+            oldarray= new Set(array) ;//array.slice(0);
+            let arr = createVolumeXYZ(index, 2, h);
+            for (const a of arr) {
+                if (!array.has(a))  array.add(a);
+            }
+
+            let difference = getDifference(array, oldarray);
+            // console.log("difference:",difference, "\narray:", array)
+
+            if (difference.size > 0)
+                createVideoDOMElementsFromArray(cl[0], difference);
+                
+            applyTransition();
+            players[index].on('ended', function (){
+
+                players[index].play();
+                
+        });
+        
+
+    }
+
+  
+   
+
+
+    });
+    $(document).keyup(function(e) {
+        if( repeatRateTimer != null )
+        {
+            clearTimeout( repeatRateTimer );
+            repeatRateTimer = null;
+        }
+        
+        repeating = false;
+    });
+
+
+    
+
+});
+
+
+async function createVideoDOMElementsFromArray(cls, vid_array){
+
+   for (const vid of vid_array) {
+       let elem = document.getElementById("panorama");
+       let tmp = vid.split('_');
+       let i = parseInt( tmp[tmp.length -1].split('.')[0]);
+       let clone = elem.cloneNode(true);
+       clone.id = `panorama_${i}`;
+       clone.style.width="100%";
+       clone.style.height="100%";
+       clone.style.display ="block";
+       cls.appendChild(clone);
+       let player = videojs(clone.id, options)
+       player.src({ src: `${basepath}/output_grid_${i}.mp4`, type: 'video/mp4' })
+       // player.el().style.display ="flex";
+       player.pause();
+       players[i]=player
+
+   }
+}
+
+function createVideoDOMElements(cls){
+
+   for (let i = 0; i < volume; i++) {
+
+       let elem = document.getElementById("panorama");
+       // elem.style.display = "none";
+       let clone = elem.cloneNode(true);
+       clone.id = `panorama_${i}`;
+       clone.style.width="100%";
+       clone.style.height="100%"
+       cls.appendChild(clone);
+       let player = videojs(clone.id, options)
+       player.src({ src: `${basepath}/output_grid_${i}.mp4`, type: 'video/mp4' })
+      // player.el().style.display ="none";
+       player.pause();
+       players.push(player);
+       
+   
+
+   }
+
+}
+
+
+function applyTransition() {
+   
+   if (prev_index != index) {
+       const videoElement =   players[prev_index].el().querySelector('video');
+       const videoAspectRatio = videoElement.videoWidth/videoElement.videoHeight;
+       const videoClientAspectRatio = videoElement.clientWidth/videoElement.clientHeight;
+       if (videoAspectRatio > videoClientAspectRatio) 
+       {
+           var width = videoElement.clientWidth;
+           var height = width/videoAspectRatio;
+           var left = 0;
+           var top = (videoElement.clientHeight - height)/2;
+       } 
+       else 
+       {
+           
+           var height = videoElement.clientHeight;
+           var width = height * videoAspectRatio;
+           var top = 0;
+           var left = (videoElement.clientWidth - width)/2;
+       }
+
+   
+       canvas.width = videoElement.clientWidth
+       canvas.height = videoElement.clientHeight;
+       let canvasContext = canvas.getContext('2d');
+
+   
+       players[prev_index].el().style.display = "none"
+       canvas.style.display="block";
+
+       canvasContext.fillStyle = "black";
+       canvasContext.fillRect(0, 0, canvas.width, canvas.height);
+       canvasContext.drawImage(videoElement, left, top, width, height);
+
+   } else repeatCounter = 0;
+
+ // Gets all instances of players.
+   const allPlayers = videojs.getAllPlayers();
+  
+   
+    allPlayers.map(   (player) => {
+        let isPlaying = player.currentTime > 0 && !player.paused && !player.ended 
+                            && player.readyState > player.HAVE_CURRENT_DATA;
+        if (player.id_ ==  `panorama_${index}` ) {
+            
+        
+            if (!isPlaying) {
+        //    if (player.paused()) {
+                player.currentTime(currentTime);
+                
+                
+
+                var playPromise = player.play();
+
+                if (playPromise !== undefined) {
+                    playPromise.then(  () => {
+                    
+                        player.el().style.display = "block";
+                        canvas.style.display="none";
+                    })
+                    .catch(async (error) => {
+                        console.log("hellooo", error);
+                        // await new Promise(r => setTimeout(r, 100 ));
+
+                        
+                    });
+                } else console.log("promise undefined")
+
+                // await player.play();
+                // player.el().style.display = "block";
+                // canvas.style.display="none";
+                
+               
+            } else {
+                player.el().style.display = "block";
+                canvas.style.display="none";
+                    
+            }
+                
+        } else {
+                player.el().style.display = "none";
+                if (isPlaying) {
+                // if (!player.paused()) {
+                     player.pause();
+
+                }
+        
+        }
+    
+    });
+
+}
+
+
+
+function removeClass(classname)
+{
+   const allPlayers = videojs.getAllPlayers();
+   allPlayers.map((player) => {
+
+       if (player.el().classList.contains(classname)) {
+           player.el().classList.remove(classname)
+       }
+   })
+   if (canvas.classList.contains(classname)) {
+           canvas.classList.remove(classname)
+   }
+   
+   
+
+}
+
+
+
+
+
+
+function getDifference(setA, setB) {
+ return new Set(
+   [...setA].filter(element => !setB.has(element))
+ );
+}
+
+window.addEventListener( 'mouseup', function (event){
+
+ 
+
+}, false );
+
+window.addEventListener("wheel", (event) =>{
+
+}, false);
+
+
+function createLineY(ind, incr) {
+   let arr = new Set();
+   
+   
+   for (let i = ind  ; i <= ind + incr ; i++){
+       if ((i+1) % grid_length == 0) {
+           arr.add(`${basepath}/output_grid_${i}.mp4`);
+           break;
+       }
+       arr.add(`${basepath}/output_grid_${i}.mp4`);
+
+   }
+
+   for (let i = ind ; i >= ind - incr ; i--){
+       if (i % grid_length == 0) {
+           arr.add(`${basepath}/output_grid_${i}.mp4`);
+           break;
+       }
+       arr.add(`${basepath}/output_grid_${i}.mp4`);
+   }
+
+   return arr;
+
+}
+
+
+
+function createAreaXY(ind, incr, k) {
+   let arr=new Set();
+   for (let i = ind  ; i <= ind + incr*grid_length ; i+=grid_length){
+
+       if (i >= ( k + 1) * area ) break;
+       arr =  new Set([...createLineY(i, incr), ...arr]);
+   }
+
+   for (let i = ind  ; i >= ind - incr*grid_length ; i-=grid_length){
+       if (i <  k * area ) break;
+        arr = new Set([...createLineY(i, incr), ...arr]);
+   }
+
+   return arr;
+}
+function createVolumeXYZ(ind, incr, k) {
+   let arr=new Set();
+  
+   let kk = k;
+   for (let i = ind ; i <= ind + incr*area ; i+=area, kk++){
+        if (i >= volume || kk >= grid_height) break;
+          arr =  new Set([...createAreaXY(i, incr, kk), ...arr]);
+   }
+   for (let i = ind  ; i >= ind - incr*area ; i-=area, k--){
+        if (i < 0 || k < 0) break;
+         arr =  new Set([...createAreaXY(i, incr, k), ...arr]);
+   }
+
+
+   return arr;
+}
+
+
+
+function calculateVolumeXYZ(ind, incr) {
+
+   var h_plus = ind + area*incr > volume ? grid_height - h -1: incr;
+   var h_minus = ind - area*incr < 0  ? h:  incr;
+   var hh = h_minus + h_plus + 1;
+
+   var l_plus = ind % grid_length + incr >= grid_length ? grid_length - ind % grid_length-1: incr;
+   var l_minus = ind % grid_length - incr < 0 ? ind % grid_length: incr;
+   var ll = l_minus + l_plus + 1;
+
+   var w_plus = ind + incr * grid_length > ( h + 1) * area ? width - Math.ceil((ind % area)/grid_length) :incr
+   var w_minus = ind - incr * grid_length < ( h ) * area ? Math.ceil((ind % area)/grid_length) :incr;
+   var ww = w_minus + w_plus + 1 ; 
+
+
+   return hh*ww*ll;
+
+}
+
+
+
+</script>
+   
+</body>
+
+
+</html>

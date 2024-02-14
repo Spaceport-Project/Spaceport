@@ -580,8 +580,8 @@ def format_equirec_render_poses(poses, img_size):
        
         FovY = 2.081562150742207 
         FovX = 2.5716052760300308 
-        # FovY = 1.5 
-        # FovX = 2.0
+        # FovY = 2.081
+        # FovX = 2.8
         cameras.append(CameraInfo(uid=idx, R=R, T=T, FovY=FovY, FovX=FovX, image=image,
                             image_path=image_path, image_name=image_name, width=img_size[0], height=img_size[1],
                             time = time))

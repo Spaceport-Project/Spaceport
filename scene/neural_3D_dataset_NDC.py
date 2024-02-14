@@ -130,9 +130,11 @@ def get_grid2(poses, near_fars):
 
     GRID_SIZE_X = 15
     GRID_SIZE_Z = 15
+    # min_x, max_x = -1.0, 0.5
+    # min_z, max_z = -1.2, 0
     min_x, max_x = -1.0, 0.5
-    min_z, max_z = -1.2, 0
-   
+    min_z, max_z =  -2, -1.2
+
     # min_x, max_x = -5, 7
     # min_z, max_z = -10, 2
     render_poses = []

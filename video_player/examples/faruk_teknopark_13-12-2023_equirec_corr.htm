@@ -44,6 +44,7 @@
         width: 100%;
         height: 100%;
         }
+
         .icon {
         
         position: absolute; 
@@ -129,7 +130,7 @@
             padding: 8px 0;
             position: fixed;
             z-index: 1;
-            left: 50%;
+            left: 40%;
             top: 10%;
             margin-left: auto;
             margin-top: auto;
@@ -260,14 +261,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
 });
 
+
 const pitch_thres = 180/6;
 const yaw_thres = 180/8;
-const length = 10;
-const width = 10;
+const length = 20;
+const width = 20;
 const height = 1;
 const area = length * width;
 const volume = length * width * height;
-var index_init = 3;
+var index_init = 4;
 var index= index_init;
 var h = Math.floor(index / area);
 var hfov_init= 120.0;
@@ -276,8 +278,8 @@ var yaw_init= 90;
 var hfov = hfov_init;
 var pitch = pitch_init;
 var yaw = yaw_init;
-var basepath = "../media/faruk_teknopark_13-12-2023_equirec"
-
+var basepath = "../media/faruk_teknopark_13-12-2023_equirec_corr"
+//const basepath = "//d223v4e7dt6i6.cloudfront.net/faruk_teknopark_13-12-2023_equirec"
 
 var player = videojs('panorama', {
           plugins: {
