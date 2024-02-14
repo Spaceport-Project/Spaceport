@@ -70,6 +70,7 @@ class Camera(nn.Module):
 
         # R = -R
         # R[:,0] =  -R[:,0]
+        # R[:,1] =  -R[:,1]
         # T = -T.dot(R)
 
 
@@ -79,8 +80,10 @@ class Camera(nn.Module):
         # R = torch.Tensor(R).unsqueeze(0)
         # T = torch.Tensor(T).unsqueeze(0)
         
-        # # R = -R
+        # R = -R
         # R[:,0] =  -R[:,0]
+        # R[:,1] =  -R[:,1]
+       
         # persp_cam = FoVPerspectiveCameras(device="cuda", R = R, T = T, zfar = self.zfar, znear = self.znear, fov = self.FoVy, degrees=False, aspect_ratio=self.FoVx/self.FoVy)
         # self.world_view_transform = persp_cam.get_world_to_view_transform().get_matrix()
      
@@ -88,11 +91,12 @@ class Camera(nn.Module):
       
         # self.camera_center = persp_cam.get_camera_center()
 
-        self.world_view_transform = getWorld2View(R, T).transpose(0,1)
-        self.projection_matrix = projection_matrix(self.znear, self.zfar, self.FoVx, self.FoVy, device="cuda").transpose(0,1)
+        self.world_view_transform = getWorld2View3(R, T, translate=torch.Tensor([0,0,-1])).transpose(0,1)
+        self.projection_matrix = projection_matrix(self.znear, self.zfar, self.FoVx, self.FoVy, device="cpu").transpose(0,1)
         self.full_proj_transform = self.world_view_transform.mm(self.projection_matrix)
 
         self.camera_center = self.world_view_transform.inverse()[3, :3]
+        pass
         
 
         

@@ -117,32 +117,59 @@ def viewmatrix2(z, up, pos):
     m[:3,3] = pos
     return m
 
-    # vec2 = normalize(z)
-    # vec1_avg = up
-    # vec0 = normalize(np.cross(vec1_avg, vec2))
-    # vec1 = normalize(np.cross(vec2, vec0))
-    # m = np.eye(4)
-    # m[:3] = np.stack([-vec0, vec1, vec2, pos], 1)
-    # return m
-
-def get_grid(near_fars):
-    """
-    Generate a set of poses using NeRF's spiral camera trajectory as validation poses.
-    """
+  
+def get_grid2(poses, near_fars):
+  
     # center pose
-    # c2w = average_poses(c2ws_all)
+    _, poses_avg = center_poses(poses, np.eye(4))
+
+    # poses_avg[:3,1] *= -1
+    # poses_avg[:3,2] *= -1
+    # r = Rot.from_euler('yz', (-30, -5),  degrees=True)
+    # poses_avg[:3,:3] = np.matmul(r.as_matrix(), poses_avg[:3,:3])
+
+    GRID_SIZE_X = 15
+    GRID_SIZE_Z = 15
+    min_x, max_x = -1.0, 0.5
+    min_z, max_z = -1.2, 0
+   
+    # min_x, max_x = -5, 7
+    # min_z, max_z = -10, 2
+    render_poses = []
+
+    step_x = (max_x - min_x)/GRID_SIZE_X
+    step_z = (max_z - min_z)/GRID_SIZE_Z
+    for j, z in enumerate(np.arange(max_z, min_z , -step_z)):
+        for i, x in enumerate(np.arange(min_x, max_x, step_x)):
+            poses_avg_clone = poses_avg.copy()
+
+            cam_center = poses_avg_clone[:3, 3]
+            cx = poses_avg_clone[:3, 0]*x
+            cam_center = cam_center + cx
+            cz = poses_avg_clone[:3, 2]*z
+            cam_center = cam_center + cz
+           
+            poses_avg_clone[:3, 3] = cam_center
+            
+            
+            render_poses.append(np.linalg.inv(poses_avg_clone))
+   
+   
+    return np.stack(render_poses)
+
+def get_grid(poses, near_fars):
+  
+   
     c2w = np.eye(4)
-    # c2w[:,1] = -c2w[:,1]
-    # c2w[:,2] = -c2w[:,2]
-    # c2w = -c2w
+  
+    
     r = Rot.from_euler('yz', (30, 5),  degrees=True)
-    #print(r.as_matrix())
+    # #print(r.as_matrix())
     c2w_r = np.matmul(r.as_matrix(), c2w[:3,:3])
     up = c2w_r[:3,1]
     z = c2w_r[:3,2]
-   
-    # up = c2w[:3,1]
-    # z = c2w[:3,2]
+
+    
    
     render_poses = render_grid(
         z, up
@@ -151,10 +178,11 @@ def get_grid(near_fars):
 
 def render_grid(z1, up):
     render_poses = []
-    GRID_SIZE_X = 20
-    GRID_SIZE_Z = 20
-    # min_x, max_x = -5 , 5
-    # min_z, max_z = -5, 5
+    GRID_SIZE_X = 1
+    GRID_SIZE_Z = 1
+    # min_x, max_x = -2 , 2
+    # min_z, max_z = 0, 2
+   
     min_x, max_x = -5, 5
     min_z, max_z = 0, 10
 
@@ -162,7 +190,7 @@ def render_grid(z1, up):
     step_z = (max_z - min_z)/GRID_SIZE_Z
     for j, z in enumerate(np.arange(min_z, max_z , step_z)):
         for i, x in enumerate(np.arange(max_x, min_x, -step_x)):
-            c = np.array([x, 0, z])
+            c = np.array([x, 0.2, z])
             
             # z1 = normalize(c - z_tmp)
             # z1 = np.array([0.0, 0.0, 1.0])
@@ -373,6 +401,8 @@ class Neural3D_NDC_Dataset(Dataset):
         self.focal = [focal, focal]
         # self.focal = [self.img_wh[0]/2, self.img_wh[1]]
         poses = np.concatenate([poses[..., 1:2], -poses[..., :1], poses[..., 2:4]], -1)
+        # poses = np.concatenate([poses[..., :1], poses[..., 1:2], poses[..., 2:4]], -1)
+
         # poses, _ = center_poses(
         #     poses, self.blender2opencv
         # )  # Re-center poses so that the average is near the center.
@@ -389,7 +419,7 @@ class Neural3D_NDC_Dataset(Dataset):
         if self.skip_grid_render:
             self.val_poses = get_spiral(poses, self.near_fars, N_views=N_views)
         else:
-            self.val_poses= get_grid(self.near_fars)
+            self.val_poses= get_grid2(poses, self.near_fars)
       
         W, H = self.img_wh
         poses_i_train = []

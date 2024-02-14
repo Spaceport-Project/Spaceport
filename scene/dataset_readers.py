@@ -280,7 +280,73 @@ def generateCamerasFromTransforms(path, template_transformsfile, extension, maxt
                             image_path=None, image_name=None, width=image.shape[1], height=image.shape[2],
                             time = time))
     return cam_infos
+
+blender_data = True
+
 def readCamerasFromTransforms(path, transformsfile, white_background, extension=".png", mapper = {}):
+    cam_infos = []
+    #white_background = True
+    with open(os.path.join(path, transformsfile)) as json_file:
+        contents = json.load(json_file)
+        fovx = 1.22136 #contents["camera_angle_x"]
+
+        frames = contents["frames"]
+        for idx, frame in enumerate(frames):
+            if idx ==0: continue
+            cam_name = os.path.join(path, frame["file_path"] + extension)
+            time = mapper[frame["time"]]
+            # matrix = np.linalg.inv(np.array(frame["transform_matrix"]))
+
+            image_path = os.path.join(path, cam_name)
+            image_name = Path(cam_name).stem
+            image = Image.open(image_path)
+
+            im_data = np.array(image.convert("RGBA"))
+
+            bg = np.array([1,1,1]) if white_background else np.array([0, 0, 0])
+
+            norm_data = im_data / 255.0
+            arr = norm_data[:,:,:3] * norm_data[:, :, 3:4] + bg * (1 - norm_data[:, :, 3:4])
+            image = Image.fromarray(np.array(arr*255.0, dtype=np.byte), "RGB")
+            yh = image.size[1]
+            xh = image.size[0]
+            image = PILtoTorch(image,(image.size[0], image.size[1]))
+
+            if blender_data:
+                matrix = np.array(frame["transform_matrix"])
+                matrix = np.concatenate([matrix[..., 1:2], -matrix[..., :1], matrix[..., 2:4]], -1)
+                R = matrix[:3,:3]
+                # T = pose[:3,3]
+                R = -R
+                R[:,0] = -R[:,0]
+                T = -matrix[:3,3].dot(R)
+
+                # matrix[:3, 1:3] *= -1
+                # matrix = np.linalg.inv(matrix)
+                # R = np.transpose(matrix[:3,:3])
+                # T = matrix[:3, 3]
+
+                fovy = focal2fov(fov2focal(fovx, image.shape[2]), image.shape[1])
+                FovY = fovy
+                FovX = fovx
+            else:
+                # We need to find correct coordinate ssystem transformation in here for our data
+                matrix = np.array(frame["transform_matrix"])
+                R = np.transpose(matrix[:3,:3])
+                T = matrix[:3, 3]
+
+                focal = 1361
+                FovY = 2*math.atan(yh/(2*focal))
+                FovX = 2*math.atan(xh/(2*focal))
+
+            cam_infos.append(CameraInfo(uid=idx, R=R, T=T, FovY=FovY, FovX=FovX, image=image,
+                            image_path=image_path, image_name=image_name, width=image.shape[1], height=image.shape[2],
+                            time = time))
+            
+    return cam_infos
+
+
+def readCamerasFromTransformsOld(path, transformsfile, white_background, extension=".png", mapper = {}):
     cam_infos = []
 
     with open(os.path.join(path, transformsfile)) as json_file:
@@ -333,7 +399,49 @@ def read_timeline(path):
         timestamp_mapper[time] = time/max_time_float
 
     return timestamp_mapper, max_time_float
+
 def readNerfSyntheticInfo(path, white_background, eval, extension=".png"):
+    timestamp_mapper, max_time = read_timeline(path)
+    print("Reading Training Transforms")
+    train_cam_infos = readCamerasFromTransforms(path, "transforms_train.json", white_background, extension, timestamp_mapper)
+    print("Reading Test Transforms")
+    test_cam_infos = readCamerasFromTransforms(path, "transforms_test.json", white_background, extension, timestamp_mapper)
+    print("Generating Video Transforms")
+    video_cam_infos = generateCamerasFromTransforms(path, "transforms_train.json", extension, max_time)
+    if not eval:
+        train_cam_infos.extend(test_cam_infos)
+        test_cam_infos = []
+
+    nerf_normalization = getNerfppNorm(train_cam_infos)
+
+    ply_path = os.path.join(path, "fused.ply")
+    if not os.path.exists(ply_path):
+        # Since this data set has no colmap data, we start with random points
+        num_pts = 2000
+        print(f"Generating random point cloud ({num_pts})...")
+
+        # We create random points inside the bounds of the synthetic Blender scenes
+        xyz = np.random.random((num_pts, 3)) * 2.6 - 1.3
+        shs = np.random.random((num_pts, 3)) / 255.0
+        pcd = BasicPointCloud(points=xyz, colors=SH2RGB(shs), normals=np.zeros((num_pts, 3)))
+    # storePly(ply_path, xyz, SH2RGB(shs) * 255)
+    else:
+        pcd = fetchPly(ply_path)
+        # xyz = -np.array(pcd.points)
+        # pcd = pcd._replace(points=xyz)
+
+
+    scene_info = SceneInfo(point_cloud=pcd,
+                           train_cameras=train_cam_infos,
+                           test_cameras=test_cam_infos,
+                           video_cameras=video_cam_infos,
+                           nerf_normalization=nerf_normalization,
+                           ply_path=ply_path,
+                           maxtime=max_time
+                           )
+    return scene_info
+
+def readNerfSyntheticInfoOld(path, white_background, eval, extension=".png"):
     timestamp_mapper, max_time = read_timeline(path)
     print("Reading Training Transforms")
     train_cam_infos = readCamerasFromTransforms(path, "transforms_train.json", white_background, extension, timestamp_mapper)
@@ -472,6 +580,8 @@ def format_equirec_render_poses(poses, img_size):
        
         FovY = 2.081562150742207 
         FovX = 2.5716052760300308 
+        # FovY = 1.5 
+        # FovX = 2.0
         cameras.append(CameraInfo(uid=idx, R=R, T=T, FovY=FovY, FovX=FovX, image=image,
                             image_path=image_path, image_name=image_name, width=img_size[0], height=img_size[1],
                             time = time))
