@@ -11,6 +11,7 @@ from torch.utils.data import Dataset
 from torchvision import transforms as T
 from tqdm import tqdm
 from scipy.spatial.transform import Rotation as Rot
+from utils.general_utils import PILtoTorch
 
 
 def normalize(v):
@@ -508,9 +509,19 @@ class Neural3D_NDC_Dataset(Dataset):
         return len(self.image_paths)
     def __getitem__(self,index):
         img = Image.open(self.image_paths[index])
-        img = img.resize(self.img_wh, Image.LANCZOS)
+        # img = img.resize(self.img_wh, Image.LANCZOS)
+       
+        im_data = np.array(img.convert("RGBA"))
 
-        img = self.transform(img)
+        bg = np.array([1,1,1]) 
+
+        norm_data = im_data / 255.0
+        arr = norm_data[:,:,:3] * norm_data[:, :, 3:4] + bg * (1 - norm_data[:, :, 3:4])
+        img = Image.fromarray(np.array(arr*255.0, dtype=np.byte), "RGB")
+    
+        img = PILtoTorch(img,(img.size[0], img.size[1]))
+
+        # img = self.transform(img)
         return img, self.image_poses[index], self.image_times[index]
     def load_pose(self,index):
         return self.image_poses[index]

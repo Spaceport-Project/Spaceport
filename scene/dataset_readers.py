@@ -17,6 +17,7 @@ from scene.colmap_loader import read_extrinsics_text, read_intrinsics_text, qvec
     read_extrinsics_binary, read_intrinsics_binary, read_points3D_binary, read_points3D_text
 from scene.hyper_loader import Load_hyper_data, format_hyper_data
 import torchvision.transforms as transforms
+import torchvision
 import copy
 import plyfile
 import plyfile
@@ -288,7 +289,7 @@ def readCamerasFromTransforms(path, transformsfile, white_background, extension=
     #white_background = True
     with open(os.path.join(path, transformsfile)) as json_file:
         contents = json.load(json_file)
-        fovx = 1.22136 #contents["camera_angle_x"]
+        fovx = contents["camera_angle_x"]
 
         frames = contents["frames"]
         for idx, frame in enumerate(frames):
@@ -314,17 +315,17 @@ def readCamerasFromTransforms(path, transformsfile, white_background, extension=
 
             if blender_data:
                 matrix = np.array(frame["transform_matrix"])
-                matrix = np.concatenate([matrix[..., 1:2], -matrix[..., :1], matrix[..., 2:4]], -1)
-                R = matrix[:3,:3]
-                # T = pose[:3,3]
-                R = -R
-                R[:,0] = -R[:,0]
-                T = -matrix[:3,3].dot(R)
+                # matrix = np.concatenate([matrix[..., 1:2], -matrix[..., :1], matrix[..., 2:4]], -1)
+                # R = matrix[:3,:3]
+                # # T = pose[:3,3]
+                # R = -R
+                # R[:,0] = -R[:,0]
+                # T = -matrix[:3,3].dot(R)
 
-                # matrix[:3, 1:3] *= -1
-                # matrix = np.linalg.inv(matrix)
-                # R = np.transpose(matrix[:3,:3])
-                # T = matrix[:3, 3]
+                matrix[:3, 1:3] *= -1
+                matrix = np.linalg.inv(matrix)
+                R = np.transpose(matrix[:3,:3])
+                T = matrix[:3, 3]
 
                 fovy = focal2fov(fov2focal(fovx, image.shape[2]), image.shape[1])
                 FovY = fovy
@@ -340,7 +341,7 @@ def readCamerasFromTransforms(path, transformsfile, white_background, extension=
                 FovX = 2*math.atan(xh/(2*focal))
 
             cam_infos.append(CameraInfo(uid=idx, R=R, T=T, FovY=FovY, FovX=FovX, image=image,
-                            image_path=image_path, image_name=image_name, width=image.shape[1], height=image.shape[2],
+                            image_path=image_path, image_name=image_name, width=image.shape[2], height=image.shape[1],
                             time = time))
             
     return cam_infos
@@ -348,10 +349,10 @@ def readCamerasFromTransforms(path, transformsfile, white_background, extension=
 
 def readCamerasFromTransformsOld(path, transformsfile, white_background, extension=".png", mapper = {}):
     cam_infos = []
-
+    cnt =0
     with open(os.path.join(path, transformsfile)) as json_file:
         contents = json.load(json_file)
-        fovx = contents["camera_angle_x"]
+        fovx = 1.22 # contents["camera_angle_x"]
 
         frames = contents["frames"]
         for idx, frame in enumerate(frames):
@@ -373,13 +374,18 @@ def readCamerasFromTransformsOld(path, transformsfile, white_background, extensi
             norm_data = im_data / 255.0
             arr = norm_data[:,:,:3] * norm_data[:, :, 3:4] + bg * (1 - norm_data[:, :, 3:4])
             image = Image.fromarray(np.array(arr*255.0, dtype=np.byte), "RGB")
-            image = PILtoTorch(image,(800,800))
-            fovy = focal2fov(fov2focal(fovx, image.shape[1]), image.shape[2])
+            if os.path.basename(image_path) == "0000.png" :
+                image.save(f"{cnt}.png")
+                cnt+=1
+            # image = PILtoTorch(image,(800,800))
+            image = PILtoTorch(image,(image.size[0], image.size[1]))
+
+            fovy = focal2fov(fov2focal(fovx, image.shape[2]), image.shape[1])
             FovY = fovy 
             FovX = fovx
 
             cam_infos.append(CameraInfo(uid=idx, R=R, T=T, FovY=FovY, FovX=FovX, image=image,
-                            image_path=image_path, image_name=image_name, width=image.shape[1], height=image.shape[2],
+                            image_path=image_path, image_name=image_name, width=image.shape[2], height=image.shape[1],
                             time = time))
             
     return cam_infos
@@ -403,9 +409,9 @@ def read_timeline(path):
 def readNerfSyntheticInfo(path, white_background, eval, extension=".png"):
     timestamp_mapper, max_time = read_timeline(path)
     print("Reading Training Transforms")
-    train_cam_infos = readCamerasFromTransforms(path, "transforms_train.json", white_background, extension, timestamp_mapper)
+    train_cam_infos = readCamerasFromTransformsOld(path, "transforms_train.json", white_background, extension, timestamp_mapper)
     print("Reading Test Transforms")
-    test_cam_infos = readCamerasFromTransforms(path, "transforms_test.json", white_background, extension, timestamp_mapper)
+    test_cam_infos = readCamerasFromTransformsOld(path, "transforms_test.json", white_background, extension, timestamp_mapper)
     print("Generating Video Transforms")
     video_cam_infos = generateCamerasFromTransforms(path, "transforms_train.json", extension, max_time)
     if not eval:
@@ -580,8 +586,7 @@ def format_equirec_render_poses(poses, img_size):
        
         FovY = 2.081562150742207 
         FovX = 2.5716052760300308 
-        # FovY = 2.081
-        # FovX = 2.8
+       
         cameras.append(CameraInfo(uid=idx, R=R, T=T, FovY=FovY, FovX=FovX, image=image,
                             image_path=image_path, image_name=image_name, width=img_size[0], height=img_size[1],
                             time = time))
@@ -590,8 +595,8 @@ def format_equirec_render_poses(poses, img_size):
 
 def readdynerfInfo(datadir,use_bg_points,eval, skip_grid_render, render_img_size):
     # loading all the data follow hexplane format
-    # ply_path = os.path.join(datadir, "points3d.ply")
-    ply_path = os.path.join(datadir, "point_cloud_downsampled.ply")
+    ply_path = os.path.join(datadir, "fused.ply")
+    # ply_path = os.path.join(datadir, "point_cloud_downsampled.ply")
     from scene.neural_3D_dataset_NDC import Neural3D_NDC_Dataset
     print("Loading data for dynerf from: ", datadir)
     train_dataset = Neural3D_NDC_Dataset(
