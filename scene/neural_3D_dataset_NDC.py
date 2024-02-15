@@ -11,6 +11,7 @@ from torch.utils.data import Dataset
 from torchvision import transforms as T
 from tqdm import tqdm
 from scipy.spatial.transform import Rotation as Rot
+from utils.general_utils import PILtoTorch
 
 
 def normalize(v):
@@ -118,22 +119,22 @@ def viewmatrix2(z, up, pos):
     return m
 
   
-def get_grid2(poses, near_fars):
+def get_grid2(poses):
   
     # center pose
     _, poses_avg = center_poses(poses, np.eye(4))
 
-    # poses_avg[:3,1] *= -1
-    # poses_avg[:3,2] *= -1
-    # r = Rot.from_euler('yz', (-30, -5),  degrees=True)
-    # poses_avg[:3,:3] = np.matmul(r.as_matrix(), poses_avg[:3,:3])
+    poses_avg[:3,1] *= -1
+    poses_avg[:3,2] *= -1
+    r = Rot.from_euler('yzx', (30, 5, 10),  degrees=True)
+    poses_avg[:3,:3] = np.matmul(r.as_matrix(), poses_avg[:3,:3])
 
-    GRID_SIZE_X = 15
-    GRID_SIZE_Z = 15
+    GRID_SIZE_X = 1
+    GRID_SIZE_Z = 1
     # min_x, max_x = -1.0, 0.5
     # min_z, max_z = -1.2, 0
-    min_x, max_x = -1.0, 0.5
-    min_z, max_z =  -2, -1.2
+    min_x, max_x = -0, 7
+    min_z, max_z = -10, 2
 
     # min_x, max_x = -5, 7
     # min_z, max_z = -10, 2
@@ -159,19 +160,20 @@ def get_grid2(poses, near_fars):
    
     return np.stack(render_poses)
 
-def get_grid(poses, near_fars):
+def get_grid():
   
    
     c2w = np.eye(4)
   
     
-    r = Rot.from_euler('yz', (30, 5),  degrees=True)
-    # #print(r.as_matrix())
-    c2w_r = np.matmul(r.as_matrix(), c2w[:3,:3])
-    up = c2w_r[:3,1]
-    z = c2w_r[:3,2]
+    # r = Rot.from_euler('yz', (30, 5),  degrees=True)
+    # # #print(r.as_matrix())
+    # c2w_r = np.matmul(r.as_matrix(), c2w[:3,:3])
+    # up = c2w_r[:3,1]
+    # z = c2w_r[:3,2]
 
-    
+    up = c2w[:3,1]
+    z = c2w[:3,2]
    
     render_poses = render_grid(
         z, up
@@ -180,19 +182,19 @@ def get_grid(poses, near_fars):
 
 def render_grid(z1, up):
     render_poses = []
-    GRID_SIZE_X = 1
-    GRID_SIZE_Z = 1
+    GRID_SIZE_X = 5
+    GRID_SIZE_Z = 5
     # min_x, max_x = -2 , 2
     # min_z, max_z = 0, 2
    
-    min_x, max_x = -5, 5
+    min_x, max_x = -5, 0
     min_z, max_z = 0, 10
 
     step_x = (max_x - min_x)/GRID_SIZE_X
     step_z = (max_z - min_z)/GRID_SIZE_Z
     for j, z in enumerate(np.arange(min_z, max_z , step_z)):
         for i, x in enumerate(np.arange(max_x, min_x, -step_x)):
-            c = np.array([x, 0.2, z])
+            c = np.array([x, 0.0, z])
             
             # z1 = normalize(c - z_tmp)
             # z1 = np.array([0.0, 0.0, 1.0])
@@ -421,7 +423,7 @@ class Neural3D_NDC_Dataset(Dataset):
         if self.skip_grid_render:
             self.val_poses = get_spiral(poses, self.near_fars, N_views=N_views)
         else:
-            self.val_poses= get_grid2(poses, self.near_fars)
+            self.val_poses= get_grid()
       
         W, H = self.img_wh
         poses_i_train = []
@@ -508,9 +510,19 @@ class Neural3D_NDC_Dataset(Dataset):
         return len(self.image_paths)
     def __getitem__(self,index):
         img = Image.open(self.image_paths[index])
-        img = img.resize(self.img_wh, Image.LANCZOS)
+        # img = img.resize(self.img_wh, Image.LANCZOS)
+       
+        im_data = np.array(img.convert("RGBA"))
 
-        img = self.transform(img)
+        bg = np.array([1,1,1]) 
+
+        norm_data = im_data / 255.0
+        arr = norm_data[:,:,:3] * norm_data[:, :, 3:4] + bg * (1 - norm_data[:, :, 3:4])
+        img = Image.fromarray(np.array(arr*255.0, dtype=np.byte), "RGB")
+    
+        img = PILtoTorch(img,(img.size[0], img.size[1]))
+
+        # img = self.transform(img)
         return img, self.image_poses[index], self.image_times[index]
     def load_pose(self,index):
         return self.image_poses[index]
