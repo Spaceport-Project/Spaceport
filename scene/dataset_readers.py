@@ -601,8 +601,8 @@ def readdynerfInfo(datadir,use_bg_points,eval, skip_grid_render, render_img_size
     print("Loading data for dynerf from: ", datadir)
     train_dataset = Neural3D_NDC_Dataset(
     datadir,
-    "train",
-    1.0,
+    split="train",
+    downsample=1.0,
     time_scale=1,
     scene_bbox_min=[-2.5, -2.0, -1.0],
     scene_bbox_max=[2.5, 2.0, 1.0],
@@ -611,8 +611,8 @@ def readdynerfInfo(datadir,use_bg_points,eval, skip_grid_render, render_img_size
         )    
     test_dataset = Neural3D_NDC_Dataset(
     datadir,
-    "test",
-    1.0,
+    split="test",
+    downsample=1.0,
     time_scale=1,
     scene_bbox_min=[-2.5, -2.0, -1.0],
     scene_bbox_max=[2.5, 2.0, 1.0],
