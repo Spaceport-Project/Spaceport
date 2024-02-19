@@ -56,7 +56,7 @@ class Camera(nn.Module):
                 self.original_image *= gt_alpha_mask
                 # .to(self.data_device)
             else:
-                self.original_image *= torch.ones((1, self.image_height, self.image_width))
+                self.original_image *= torch.ones((1, self.image_height, self.image_width)).to(device='cuda')
                                                     #   , device=self.data_device)
 
             
