@@ -350,43 +350,10 @@ class Neural3D_NDC_Dataset(Dataset):
         eval_index=0,
         sphere_scale=1.0,
         skip_grid_render=False,
-        image_paths = None,
-        images = None
     ):
         cam01_images_fold = os.path.join(datadir,"cam01","images")
         cam01_images = [file for file in os.listdir(cam01_images_fold) if file.endswith(".png") or file.endswith(".jpg") ]
-                
-        if image_paths is None:
-            self.images_paths = []
-        if images is None:
-            self.images = []
-        
-        self.split = split
-
-        if self.split == "train":
-            for folder in os.listdir(datadir):
-                if not folder == "cam00":
-                    d = os.path.join(datadir,folder,"images")
-                    if os.path.isdir(d):
-                        for file in os.listdir(d):
-                            if file.endswith(".png") or file.endswith(".jpg"):
-                                self.images_paths.append(os.path.join(d,file))
-        else:
-            test_images = os.listdir(os.path.join(datadir,"cam00","images"))
-            for image_path in test_images:
-                if image_path.endswith(".png") or image_path.endswith(".jpg"):
-                    self.images_paths.append(os.path.join(datadir,"cam00","images",image_path))
-                    
-        for image_path in self.images_paths:
-            img = Image.open(image_path)
-            im_data = np.array(img.convert("RGBA"))
-            bg = np.array([1,1,1])
-            norm_data = im_data / 255.0
-            arr = norm_data[:,:,:3] * norm_data[:, :, 3:4] + bg * (1 - norm_data[:, :, 3:4])
-            img = Image.fromarray(np.array(arr*255.0, dtype=np.byte), "RGB")
-            img = PILtoTorch(img,(img.size[0], img.size[1]))
-            self.images.append(img)
-
+          
         self.len_images = len(cam01_images)
         img = Image.open(os.path.join(cam01_images_fold,cam01_images[0]))
 
@@ -420,7 +387,7 @@ class Neural3D_NDC_Dataset(Dataset):
         self.depth_data = False
 
         self.load_meta()
-        print(f"meta data loaded, total image:{len(self)}")
+        print(f"Meta data loaded for {self.split} dataset, total image:{len(self)}")
 
     def load_meta(self):
         """
@@ -467,15 +434,16 @@ class Neural3D_NDC_Dataset(Dataset):
                 poses_i_train.append(i)
         self.poses = poses[poses_i_train]
         self.poses_all = poses
-        self.image_paths, self.image_poses, self.image_times, N_cam, N_time = self.load_images_path(videos, self.split)
+        self.images, self.image_paths, self.image_poses, self.image_times, N_cam, N_time = self.load_images_path(videos)
         self.cam_number = N_cam
         self.time_number = N_time
     def get_val_pose(self):
         render_poses = self.val_poses
         render_times = torch.linspace(0.0, 1.0, render_poses.shape[0]) * 2.0 - 1.0
         return render_poses, self.time_scale * render_times
-    def load_images_path(self,videos,split):
-        image_paths = []
+    def load_images_path(self,videos):
+        images= []
+        image_paths= []
         image_poses = []
         image_times = []
         N_cams = 0
@@ -484,10 +452,10 @@ class Neural3D_NDC_Dataset(Dataset):
         for index, video_path in enumerate(videos):
             
             if index == self.eval_index:
-                if split =="train":
+                if self.split =="train":
                     continue
             else:
-                if split == "test":
+                if self.split == "test":
                     continue
             N_cams +=1
             count = 0
@@ -523,14 +491,24 @@ class Neural3D_NDC_Dataset(Dataset):
             for idx, path in enumerate(images_path):
                 if this_count >=countss:break
                 image_paths.append(os.path.join(image_path,path))
+                img_path = os.path.join(image_path,path)
                 pose = np.array(self.poses_all[index])
                 R = pose[:3,:3]
-                T = pose[:3,3]
                 R = -R
                 R[:,0] = -R[:,0]
                 T = -pose[:3,3].dot(R)
                 image_times.append(idx/countss)
                 image_poses.append((R,T))
+
+                img = Image.open(img_path)
+                im_data = np.array(img.convert("RGBA"))
+                bg = np.array([1,1,1])
+                norm_data = im_data / 255.0
+                arr = norm_data[:,:,:3] * norm_data[:, :, 3:4] + bg * (1 - norm_data[:, :, 3:4])
+                img = Image.fromarray(np.array(arr*255.0, dtype=np.byte), "RGB")
+                img = PILtoTorch(img,(img.size[0], img.size[1]))
+                images.append(img)
+
                 # if self.downsample != 1.0:
                 #     img = video_frame.resize(self.img_wh, Image.LANCZOS)
                 # img.save(os.path.join(image_path,"%04d.png"%count))
@@ -539,26 +517,10 @@ class Neural3D_NDC_Dataset(Dataset):
 
                 #     video_data_save[count] = img.permute(1,2,0)
                 #     count += 1
-        return image_paths, image_poses, image_times, N_cams, N_time
+        return images, image_paths, image_poses, image_times, N_cams, N_time
+    
     def __len__(self):
         return len(self.image_paths)
-    # def __getitem__(self,index):
-    #     img = Image.open(self.image_paths[index])
-    #     # img = img.resize(self.img_wh, Image.LANCZOS)
-       
-    #     im_data = np.array(img.convert("RGBA"))
-
-    #     bg = np.array([1,1,1]) 
-
-    #     norm_data = im_data / 255.0
-    #     arr = norm_data[:,:,:3] * norm_data[:, :, 3:4] + bg * (1 - norm_data[:, :, 3:4])
-    #     img = Image.fromarray(np.array(arr*255.0, dtype=np.byte), "RGB")
-    
-    #     img = PILtoTorch(img,(img.size[0], img.size[1]))
-
-    #     # img = self.transform(img)
-    #     ##rint("Returning image from getitem")
-    #     return img, self.image_poses[index], self.image_times[index]
 
     def __getitem__(self,index):
         return self.images[index], self.image_poses[index], self.image_times[index]

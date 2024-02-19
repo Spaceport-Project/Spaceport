@@ -146,13 +146,13 @@ def fetchPly_new(path):
     positions = np.vstack([vertices['x'], vertices['y'], vertices['z']]).T
 
     # Optional: colors
-    if all(c in vertices.dtype.names for c in ['red', 'green', 'blue']):
+    if all([c in vertices.dtype().names for c in ['red', 'green', 'blue']]):
         colors = np.vstack([vertices['red'], vertices['green'], vertices['blue']]).T / 255.0
     else:
         colors = np.zeros_like(positions)  # Or any default value
 
     # Optional: normals
-    if all(n in vertices.dtype.names for n in ['nx', 'ny', 'nz']):
+    if all(n in vertices.dtype().names for n in ['nx', 'ny', 'nz']):
         normals = np.vstack([vertices['nx'], vertices['ny'], vertices['nz']]).T
     else:
         normals = np.zeros_like(positions)  # Or any default value
@@ -595,8 +595,8 @@ def format_equirec_render_poses(poses, img_size):
 
 def readdynerfInfo(datadir,use_bg_points,eval, skip_grid_render, render_img_size):
     # loading all the data follow hexplane format
-    ply_path = os.path.join(datadir, "point_cloud_downsampled.ply")
-    # ply_path = os.path.join(datadir, "point_cloud_sparse_normals.ply")
+    ply_path = os.path.join(datadir, "point_cloud_sparse.ply")
+    # ply_path = os.path.join(datadir, "fused.ply")
     from scene.neural_3D_dataset_NDC import Neural3D_NDC_Dataset
     print("Loading data for dynerf from: ", datadir)
     train_dataset = Neural3D_NDC_Dataset(
@@ -631,7 +631,7 @@ def readdynerfInfo(datadir,use_bg_points,eval, skip_grid_render, render_img_size
                     else  format_render_poses(test_dataset.val_poses, test_dataset)
     nerf_normalization = getNerfppNorm(train_cam_infos)
 
-    pcd = fetchPly(ply_path)
+    pcd = fetchPly_new(ply_path)
     print("origin points,",pcd.points.shape[0])
     
     print("after points,",pcd.points.shape[0])
