@@ -20,7 +20,6 @@ import torchvision.transforms as transforms
 import torchvision
 import copy
 import plyfile
-import plyfile
 from utils.graphics_utils import getWorld2View2, focal2fov, fov2focal
 import numpy as np
 import torch
@@ -31,7 +30,6 @@ from utils.sh_utils import SH2RGB
 from scene.gaussian_model import BasicPointCloud
 from utils.general_utils import PILtoTorch
 from tqdm import tqdm
-from plyfile import PlyData, PlyElement
 
 class CameraInfo(NamedTuple):
     uid: int

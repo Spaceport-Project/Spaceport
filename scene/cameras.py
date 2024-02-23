@@ -12,7 +12,7 @@
 import torch
 from torch import nn
 import math
-from pytorch3d.renderer.cameras import FoVPerspectiveCameras
+# from pytorch3d.renderer.cameras import FoVPerspectiveCameras
 import numpy as np
 from utils.graphics_utils import getWorld2View, getWorld2View3, getProjectionMatrix
 
