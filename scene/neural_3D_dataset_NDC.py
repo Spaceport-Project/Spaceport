@@ -5,7 +5,9 @@ import os
 import json
 import cv2
 import numpy as np
+import glm
 import torch
+import copy
 from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms as T
@@ -179,6 +181,75 @@ def get_grid():
         z, up
     )
     return np.stack(render_poses)
+def get_circular_grid():
+    c2w = np.eye(4)
+  
+    up = c2w[:3,1]
+    z = c2w[:3,2]
+   
+    render_poses = render_circular_grid(
+         up
+    )
+    return np.stack(render_poses)
+
+def render_circular_grid(up):
+    render_poses = []
+
+    scale = 0.05
+    r = Rot.from_euler('y', (-10),  degrees=True)
+    tot_angle = 0
+    up_g = glm.vec3(up)
+    target_g = glm.vec3(-2.2202862, 0.00043772, 8.18622099) * scale
+    # target_g = glm.vec3(-2.220829,-0.301539,7.800101)
+    pos_target =  glm.vec3(-2.2202862, 0.00043772, 0) * scale
+    direc = pos_target - target_g
+    rot_direc = glm.rotate(glm.mat4(1.0), glm.radians(-60), up_g)
+    init_direc_rotated = glm.vec3(rot_direc * glm.vec4(direc, 1)) #copy.deepcopy(direc_rotated)
+    rot_incr_direc = glm.rotate(glm.mat4(1.0), glm.radians(10), up_g)
+    # file = open("val_poses.txt", "w")
+    rang = [4,13,2]
+    rang = [i*scale for i in rang]
+    for rr in np.arange(*rang):
+      
+        pos = glm.vec3(-glm.sin(glm.pi() * 60/180)*rr, 0. , -np.cos(np.pi * 60/180)*rr)
+       
+        direc_rotated = glm.normalize(init_direc_rotated) * rr 
+        tot_angle = 0
+        for j in range(100):
+            if tot_angle > 100: 
+                break
+           
+            eye_g = target_g + direc_rotated
+            # eye_g = target_g + pos 
+            cameraDirection = glm.normalize(eye_g - target_g)
+            cameraRight = glm.normalize(glm.cross(up_g, cameraDirection))
+            cameraUp = glm.cross(cameraDirection, cameraRight)
+            mat = np.eye(4)
+            mat_sub = np.stack([cameraRight, cameraUp, -cameraDirection])
+            mat[:3,:3] = mat_sub
+            translate_mat = np.eye(4)
+            translate_mat[:3,3] = -eye_g 
+
+            mat = np.matmul(mat, translate_mat)
+            
+
+
+
+            render_poses.append(mat)
+            inv_mat = np.linalg.inv(mat)
+            # np.savetxt(file,inv_mat)
+          
+            # rot_mat = glm.rotate(glm.mat4(1.0), glm.radians(-30), up_g)
+            # pos = glm.vec3(np.matmul(r.as_matrix(), pos))
+            direc_rotated = glm.vec3(rot_incr_direc* glm.vec4(direc_rotated, 1))
+            tot_angle += 10
+
+           
+            pass
+    # file.close()
+
+    return render_poses
+
 
 def render_grid(z1, up):
     render_poses = []
@@ -195,16 +266,11 @@ def render_grid(z1, up):
     for j, z in enumerate(np.arange(min_z, max_z , step_z)):
         for i, x in enumerate(np.arange(max_x, min_x, -step_x)):
             c = np.array([x, 0.0, z])
-            
-            # z1 = normalize(c - z_tmp)
-            # z1 = np.array([0.0, 0.0, 1.0])
-            # z1 = c2w[:3,2]
-
+          
             render_poses.append(viewmatrix(z1, up, c))
 
      
     return render_poses
-
 
 def render_path_spiral(c2w, up, rads, focal, zdelta, zrate, N_rots=2, N=120):
     render_poses = []
@@ -424,7 +490,7 @@ class Neural3D_NDC_Dataset(Dataset):
         if self.skip_grid_render:
             self.val_poses = get_spiral(poses, self.near_fars, N_views=N_views)
         else:
-            self.val_poses= get_grid()
+            self.val_poses= get_circular_grid() # get_grid()
       
         W, H = self.img_wh
         poses_i_train = []
@@ -434,9 +500,16 @@ class Neural3D_NDC_Dataset(Dataset):
                 poses_i_train.append(i)
         self.poses = poses[poses_i_train]
         self.poses_all = poses
-        self.images, self.image_paths, self.image_poses, self.image_times, N_cam, N_time = self.load_images_path(videos)
-        self.cam_number = N_cam
-        self.time_number = N_time
+        # self.images, self.image_paths, self.image_poses, self.image_times, N_cam, N_time = self.load_images_path(videos)
+        if self.split == "train" or self.split == "test":
+            self.images, self.image_paths, self.image_poses, self.image_times, N_cam, N_time = self.load_images_path(videos)
+            # self.image_paths, self.image_poses, self.image_times, N_cam, N_time = self.load_images_path(videos)
+        else:
+            self.images, self.image_paths, self.image_poses, self.image_times = [], [], [], []
+            # self.image_paths, self.image_poses, self.image_times = [], [], []
+        pass
+        # self.cam_number = N_cam
+        # self.time_number = N_time
     def get_val_pose(self):
         render_poses = self.val_poses
         render_times = torch.linspace(0.0, 1.0, render_poses.shape[0]) * 2.0 - 1.0
@@ -450,7 +523,7 @@ class Neural3D_NDC_Dataset(Dataset):
         N_time = 0
         countss = self.len_images
         for index, video_path in enumerate(videos):
-            
+           
             if index == self.eval_index:
                 if self.split =="train":
                     continue
@@ -494,6 +567,7 @@ class Neural3D_NDC_Dataset(Dataset):
                 img_path = os.path.join(image_path,path)
                 pose = np.array(self.poses_all[index])
                 R = pose[:3,:3]
+                # pose[:3,3] *= 0.05
                 R = -R
                 R[:,0] = -R[:,0]
                 T = -pose[:3,3].dot(R)
@@ -518,12 +592,21 @@ class Neural3D_NDC_Dataset(Dataset):
                 #     video_data_save[count] = img.permute(1,2,0)
                 #     count += 1
         return images, image_paths, image_poses, image_times, N_cams, N_time
+        # return image_paths, image_poses, image_times, N_cams, N_time
     
     def __len__(self):
         return len(self.image_paths)
 
     def __getitem__(self,index):
         return self.images[index], self.image_poses[index], self.image_times[index]
+    # def __getitem__(self,index):
+    #     img = Image.open(self.image_paths[index])
+    #     img = img.resize(self.img_wh, Image.LANCZOS)
+
+    #     img = self.transform(img)
+    #     return img, self.image_poses[index], self.image_times[index]
+    
+   
     
     def load_pose(self,index):
         return self.image_poses[index]

@@ -72,8 +72,13 @@ def getWorld2View3(R, t, translate=torch.Tensor([.0, .0, .0], device="cpu"), sca
     R = R.squeeze(0)
     Rt = torch.zeros(4, 4, device="cpu")
     Rt[:3, :3] = R.transpose(0,1)
+    # Rt[:3, :3] = R
     Rt[:3, 3] = t
     Rt[3, 3] = 1.0
+
+    # Rt = torch.linalg.inv(Rt)
+    
+    
     C2W = torch.linalg.inv(Rt)
     cam_center = C2W[:3, 3]
     cam_center = (cam_center + translate) * scale

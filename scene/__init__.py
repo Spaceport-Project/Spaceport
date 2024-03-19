@@ -24,7 +24,7 @@ class Scene:
 
     gaussians : GaussianModel
 
-    def __init__(self, args : ModelParams, gaussians : GaussianModel, load_iteration=None, shuffle=True, resolution_scales=[1.0], load_coarse=False, skip_grid_render=False, render_img_size=None):
+    def __init__(self, args : ModelParams, gaussians : GaussianModel, load_iteration=None, shuffle=True, resolution_scales=[1.0], load_coarse=False, skip_grid_render=False, render_img_size=None, test_or_train ="train"):
         """b
         :param path: Path to colmap scene main folder.
         """
@@ -51,7 +51,7 @@ class Scene:
             print("Found transforms_train.json file, assuming Blender data set!")
             scene_info = sceneLoadTypeCallbacks["Blender"](args.source_path, args.white_background, args.eval)
         elif os.path.exists(os.path.join(args.source_path, "poses_bounds.npy")):
-            scene_info = sceneLoadTypeCallbacks["dynerf"](args.source_path, args.white_background, args.eval, skip_grid_render, render_img_size)
+            scene_info = sceneLoadTypeCallbacks["dynerf"](args.source_path, test_or_train, args.eval, skip_grid_render, render_img_size, )
         elif os.path.exists(os.path.join(args.source_path,"dataset.json")):
             scene_info = sceneLoadTypeCallbacks["nerfies"](args.source_path, False, args.eval)
         # elif os.path.exists(os.path.join(args.source_path,"poses_bounds_spaceport.npy")):
@@ -77,9 +77,10 @@ class Scene:
         # if shuffle:
         #     random.shuffle(scene_info.train_cameras)  # Multi-res consistent random shuffling
         #     random.shuffle(scene_info.test_cameras)  # Multi-res consistent random shuffling
-
-        self.cameras_extent = scene_info.nerf_normalization["radius"]
-
+        if scene_info.nerf_normalization:
+            self.cameras_extent = scene_info.nerf_normalization["radius"]
+        else: 
+            self.cameras_extent = 1
         # for resolution_scale in resolution_scales:
             # print("Loading Training Cameras")
             # self.train_cameras[resolution_scale] = cameraList_from_camInfos(scene_info.train_cameras, resolution_scale, args)
@@ -91,9 +92,14 @@ class Scene:
         self.train_camera = FourDGSdataset(scene_info.train_cameras, args)
         print("Loading Test Cameras")
         self.test_camera = FourDGSdataset(scene_info.test_cameras, args)
-        print("Loading Video Cameras")
         
-        self.video_camera = cameraList_from_camInfos(scene_info.video_cameras,-1, render_img_size, args)
+       
+        if scene_info.video_cameras:
+            print("Loading Video Cameras")
+            self.video_camera = cameraList_from_camInfos(scene_info.video_cameras, -1, render_img_size, args)
+        else:
+            self.video_camera = None
+            
         xyz_max = scene_info.point_cloud.points.max(axis=0)
         xyz_min = scene_info.point_cloud.points.min(axis=0)
         self.gaussians._deformation.deformation_net.grid.set_aabb(xyz_max,xyz_min)

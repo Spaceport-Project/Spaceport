@@ -37,9 +37,11 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
     # tanfovx = math.tan(viewpoint_camera.FoVx * 3.4146/1.2) 
     # tanfovy =  math.tan(math.pi/4); 
     # tanfovx = math.tan(math.pi*4/6); 
-    if render_img_size:
-        viewpoint_camera.image_width= render_img_size[0]
-        viewpoint_camera.image_height= render_img_size[1]
+    # print("camera center:", viewpoint_camera.camera_center)
+    if render_img_size is not None:
+        if render_img_size[0] is not None and render_img_size[1] is not None:
+            viewpoint_camera.image_width= render_img_size[0]
+            viewpoint_camera.image_height= render_img_size[1]
     raster_settings = GaussianRasterizationSettings(
         image_height = int(viewpoint_camera.image_height),
         image_width =  int(viewpoint_camera.image_width),

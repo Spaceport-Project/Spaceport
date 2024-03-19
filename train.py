@@ -253,13 +253,13 @@ def scene_reconstruction(dataset, opt, hyper, pipe, testing_iterations, saving_i
                 # print("\n[ITER {}] Saving Checkpoint".format(iteration))
                 # os.makedirs(os.path.join(scene.model_path, stage), exist_ok=True)
                 # torch.save((gaussians.capture(), iteration), os.path.join(scene.model_path, stage, "chkpnt_" + str(iteration) + ".pth"))
-def training(dataset, hyper, opt, pipe, testing_iterations, saving_iterations, loaded_iter, checkpoint, debug_from, expname):
+def training(dataset, hyper, opt, pipe, testing_iterations, saving_iterations, loaded_iter, checkpoint, debug_from, expname, render_img_size):
     # first_iter = 0
     tb_writer = prepare_output_and_logger(expname)
     gaussians = GaussianModel(dataset.sh_degree, hyper)
     dataset.model_path = args.model_path
     timer = Timer()
-    scene = Scene(dataset, gaussians, load_coarse=None, load_iteration= loaded_iter)
+    scene = Scene(dataset, gaussians, load_coarse=None, load_iteration= loaded_iter, render_img_size=render_img_size)
 
     timer.start()
     scene_reconstruction(dataset, opt, hyper, pipe, testing_iterations, saving_iterations,
@@ -336,10 +336,10 @@ def training_report(tb_writer, iteration, Ll1, loss, l1_loss, elapsed, testing_i
                     tb_writer.add_scalar(stage+"/"+config['name'] + '/loss_viewpoint - psnr', psnr_test, iteration)
 
         if tb_writer:
-            tb_writer.add_histogram(f"{stage}/scene/opacity_histogram", scene.gaussians.get_opacity, iteration)
+           # tb_writer.add_histogram(f"{stage}/scene/opacity_histogram", scene.gaussians.get_opacity, iteration)
             tb_writer.add_scalar(f'{stage}/total_points', scene.gaussians.get_xyz.shape[0], iteration)
             tb_writer.add_scalar(f'{stage}/deformation_rate', scene.gaussians._deformation_table.sum()/scene.gaussians.get_xyz.shape[0], iteration)
-            tb_writer.add_histogram(f"{stage}/scene/motion_histogram", scene.gaussians._deformation_accum.mean(dim=-1)/100, iteration,max_bins=500)
+           # tb_writer.add_histogram(f"{stage}/scene/motion_histogram", scene.gaussians._deformation_accum.mean(dim=-1)/100, iteration,max_bins=500)
         
         torch.cuda.empty_cache()
 def setup_seed(seed):
@@ -370,6 +370,7 @@ if __name__ == "__main__":
     parser.add_argument("--start_checkpoint", type=str, default = None)
     parser.add_argument("--expname", type=str, default = "")
     parser.add_argument("--configs", type=str, default = "")
+    parser.add_argument("--override_render_img_size", nargs='+', default = (None, None), type=int)
 
     
     args = parser.parse_args(sys.argv[1:])
@@ -384,11 +385,15 @@ if __name__ == "__main__":
     print("Optimizing " + args.model_path)
     # Initialize system state (RNG)
     safe_state(args.quiet)
+    if args.override_render_img_size:
+        render_img_size = tuple(args.override_render_img_size)
+    else :
+        render_img_size = None
 
     # Start GUI server, configure and run training
     network_gui.init(args.ip, args.port)
     torch.autograd.set_detect_anomaly(args.detect_anomaly)
-    training(lp.extract(args), hp.extract(args), op.extract(args), pp.extract(args), args.test_iterations, args.save_iterations, args.loaded_iter, args.start_checkpoint, args.debug_from, args.expname)
+    training(lp.extract(args), hp.extract(args), op.extract(args), pp.extract(args), args.test_iterations, args.save_iterations, args.loaded_iter, args.start_checkpoint, args.debug_from, args.expname, render_img_size)
 
     # All done
     print("\nTraining complete.")

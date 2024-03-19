@@ -61,19 +61,19 @@ def render_set_all(model_path, name, iteration, views, gaussians, pipeline, back
         gt_list2 = []
         render_list = []
         for idx in tqdm(range(num_frames)):
-        # for idx, view in enumerate(tqdm(range(300), desc="Rendering progress")):
-            if idx == 0:time1 = time()
+            if idx == 0:
+                time1 = time()
+            # if idx > 0:
+            #     break
             view.time = idx/num_frames
             # print(f"views[{idx}]: {view.image_name}, {view.R}")
             rendering = render(view, gaussians, pipeline, background, render_img_size=render_img_size, equirec_flag=True)["render"]
-            transform = torchvision.transforms.CenterCrop((int(render_img_size[1]*3/4), int(render_img_size[0])))
-            cropped_rendering = transform(rendering)
+            # transform = torchvision.transforms.CenterCrop((int(render_img_size[1]*3/4), int(render_img_size[0])))
+            # cropped_rendering = transform(rendering)
 
-            # torchvision.utils.save_image(rendering, os.path.join(render_path, '{0:05d}'.format(idx) + ".png"))
-            render_images.append(to8b(cropped_rendering).transpose(1,2,0))
-            # torchvision.utils.save_image(cropped_rendering, os.path.join(render_path, f"{id}_{idx}.png"))
-            # print(to8b(cropped_rendering).shape)
-            render_list.append(cropped_rendering)
+            torchvision.utils.save_image(rendering, os.path.join(render_path, '{0}_{1:02d}'.format(id, idx) + ".png"))
+            render_images.append(to8b(rendering).transpose(1,2,0))
+            render_list.append(rendering)
             if name in ["train", "test"]:
                 gt_list2.append(to8b(view.original_image).transpose(1,2,0))
                 gt = view.original_image[0:3, :, :]
@@ -146,10 +146,10 @@ def render_set(model_path, name, iteration, views, gaussians, pipeline, backgrou
     imageio.mimwrite(os.path.join(model_path, name, "ours_{}".format(iteration), 'video_rgb.mp4'), render_images, fps=30, quality=8)
     # imageio.mimwrite(os.path.join(model_path, name, "ours_{}".format(iteration), 'video_rgb_gt.mp4'), gt_list2, fps=30, quality=8)
 
-def render_sets(dataset : ModelParams, hyperparam, iteration : int, pipeline : PipelineParams, skip_train : bool, skip_test : bool, skip_video: bool, skip_grid_render:bool, render_img_size):
+def render_sets(dataset : ModelParams, hyperparam, iteration : int, pipeline : PipelineParams, skip_train : bool, skip_test : bool, skip_video: bool, skip_grid_render:bool, render_img_size, test_or_train):
     with torch.no_grad():
         gaussians = GaussianModel(dataset.sh_degree, hyperparam)
-        scene = Scene(dataset, gaussians, load_iteration=iteration, shuffle=False, skip_grid_render=skip_grid_render, render_img_size=render_img_size)
+        scene = Scene(dataset, gaussians, load_iteration=iteration, shuffle=False, skip_grid_render=skip_grid_render, render_img_size=render_img_size, test_or_train =test_or_train)
 
         bg_color = [1,1,1] if dataset.white_background else [0, 0, 0]
         background = torch.tensor(bg_color, dtype=torch.float32, device="cuda")
@@ -161,7 +161,7 @@ def render_sets(dataset : ModelParams, hyperparam, iteration : int, pipeline : P
         if not skip_video:
             # render_set(dataset.model_path,"video",scene.loaded_iter,scene.getVideoCameras(),gaussians,pipeline,background)
             if not skip_grid_render:
-                render_set_all(dataset.model_path,"video",scene.loaded_iter,scene.getVideoCameras(),gaussians, pipeline, background, num_frames= scene.maxtime, render_img_size=render_img_size)
+                render_set_all(dataset.model_path,"video",scene.loaded_iter, scene.getVideoCameras(),gaussians, pipeline, background, num_frames= scene.maxtime, render_img_size=render_img_size)
             else:
                 render_set(dataset.model_path,"video",scene.loaded_iter,scene.getVideoCameras(),gaussians,pipeline,background)
 
@@ -180,13 +180,10 @@ if __name__ == "__main__":
     parser.add_argument("--skip_video", action="store_true")
     parser.add_argument("--configs", type=str, default="arguments/dynerf/default.py")
     parser.add_argument("--skip_grid_render", action="store_true")
-    parser.add_argument("--override_render_img_size", nargs='+', default = (6000, 3000), type=int)
-    # parser.add_argument("--model_path", type=str, default= "output/spaceport/13-12-2023/101-150_lum90_bayer_png_30fps_10frm_batch_1")
+    parser.add_argument("--override_render_img_size", nargs='+', default = (None, None), type=int)
 
     args = get_combined_args(parser)
  
-    # args.override_render_img_size = (8000, 4000)
-    # print("Rendering " , args.model_path)
     if args.configs:
         print("Loading configs from ", args.configs)
         import mmcv
@@ -197,4 +194,12 @@ if __name__ == "__main__":
     safe_state(args.quiet)
     if args.override_render_img_size:
         render_img_size = tuple(args.override_render_img_size)
-    render_sets(model.extract(args), hyperparam.extract(args), args.iteration, pipeline.extract(args), args.skip_train, args.skip_test, args.skip_video, args.skip_grid_render, render_img_size)
+    else :
+        render_img_size = None
+        
+    if args.skip_train and args.skip_test:
+        test_or_train = "test"
+    else:
+        test_or_train = "train"
+
+    render_sets(model.extract(args), hyperparam.extract(args), args.iteration, pipeline.extract(args), args.skip_train, args.skip_test, args.skip_video, args.skip_grid_render, render_img_size, test_or_train)

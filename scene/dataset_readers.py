@@ -584,6 +584,7 @@ def format_equirec_render_poses(poses, img_size):
        
         FovY = 2.081562150742207 
         FovX = 2.5716052760300308 
+    
        
         cameras.append(CameraInfo(uid=idx, R=R, T=T, FovY=FovY, FovX=FovX, image=image,
                             image_path=image_path, image_name=image_name, width=img_size[0], height=img_size[1],
@@ -591,43 +592,67 @@ def format_equirec_render_poses(poses, img_size):
     return cameras
 
 
-def readdynerfInfo(datadir,use_bg_points,eval, skip_grid_render, render_img_size):
+def readdynerfInfo(datadir, test_or_train, eval, skip_grid_render, render_img_size):
     # loading all the data follow hexplane format
-    ply_path = os.path.join(datadir, "point_cloud_sparse.ply")
+    # ply_path = os.path.join(datadir, "fused.ply")
+    ply_path = os.path.join(datadir, "fused_origin_scaled005.ply")
     # ply_path = os.path.join(datadir, "fused.ply")
     from scene.neural_3D_dataset_NDC import Neural3D_NDC_Dataset
     print("Loading data for dynerf from: ", datadir)
-    train_dataset = Neural3D_NDC_Dataset(
-    datadir,
-    split="train",
-    downsample=1.0,
-    time_scale=1,
-    scene_bbox_min=[-2.5, -2.0, -1.0],
-    scene_bbox_max=[2.5, 2.0, 1.0],
-    eval_index=0,
-    
+    if test_or_train == "train":
+        train_dataset = Neural3D_NDC_Dataset(
+        datadir,
+        split="train",
+        downsample=1.0,
+        time_scale=1,
+        scene_bbox_min=[-2.5, -2.0, -1.0],
+        scene_bbox_max=[2.5, 2.0, 1.0],
+        eval_index=0,
+        
         )    
-    test_dataset = Neural3D_NDC_Dataset(
-    datadir,
-    split="test",
-    downsample=1.0,
-    time_scale=1,
-    scene_bbox_min=[-2.5, -2.0, -1.0],
-    scene_bbox_max=[2.5, 2.0, 1.0],
-    eval_index=0,
-    skip_grid_render = skip_grid_render
-    )
+        test_dataset = Neural3D_NDC_Dataset(
+        datadir,
+        split="test",
+        downsample=1.0,
+        time_scale=1,
+        scene_bbox_min=[-2.5, -2.0, -1.0],
+        scene_bbox_max=[2.5, 2.0, 1.0],
+        eval_index=0,
+        skip_grid_render = skip_grid_render
+        )
+    elif test_or_train == "test":
+        test_dataset = Neural3D_NDC_Dataset(
+        datadir,
+        split="test",
+        downsample=1.0,
+        time_scale=1,
+        scene_bbox_min=[-2.5, -2.0, -1.0],
+        scene_bbox_max=[2.5, 2.0, 1.0],
+        eval_index=0,
+        skip_grid_render = skip_grid_render
+        )
+    else:
+        raise Exception("Either test or train mode must be selected! Exiting...")
   
 
 
     max_time = len([file for file in os.listdir(os.path.join(datadir,"cam01","images")) if file.endswith(".png") or file.endswith(".jpg") ])
 
-    train_cam_infos = format_infos(train_dataset,"train")
+    if 'train_dataset' in globals() or 'train_dataset' in locals():
+        train_cam_infos = format_infos(train_dataset,"train")
+        nerf_normalization = getNerfppNorm(train_cam_infos)
+    else :
+        train_dataset = None
+        nerf_normalization = None
+
+
     # val_cam_infos = format_render_poses(test_dataset.val_poses, test_dataset)
     # assert render_img_size is not None
-    val_cam_infos = format_equirec_render_poses(test_dataset.val_poses, render_img_size) if render_img_size \
-                    else  format_render_poses(test_dataset.val_poses, test_dataset)
-    nerf_normalization = getNerfppNorm(train_cam_infos)
+   
+    val_cam_infos = format_equirec_render_poses(test_dataset.val_poses, render_img_size) if render_img_size[0] is not None and render_img_size[1] is not None \
+                else  format_render_poses(test_dataset.val_poses, test_dataset)
+   
+       
 
     pcd = fetchPly_new(ply_path)
     print("origin points,",pcd.points.shape[0])

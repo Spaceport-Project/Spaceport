@@ -15,12 +15,12 @@ import math
 # from pytorch3d.renderer.cameras import FoVPerspectiveCameras
 import numpy as np
 from utils.graphics_utils import getWorld2View, getWorld2View3, getProjectionMatrix
-
+import copy
 class Camera(nn.Module):
     def __init__(self, colmap_id, R, T, FoVx, FoVy, image, gt_alpha_mask,
                  image_name, uid,
                  trans=np.array([0.0, 0.0, 0.0]), scale=1.0, data_device = "cuda", time = 0
-                 , render_img_size = None
+                 , render_img_size = (None, None)
                  ):
         super(Camera, self).__init__()
 
@@ -40,10 +40,10 @@ class Camera(nn.Module):
             self.data_device = torch.device("cuda")
         
         
-       
-        if render_img_size:
+        if render_img_size[0] is not None and render_img_size[1] is not None:
             self.image_width = render_img_size[0]
             self.image_height = render_img_size[1]
+          
         else:
             self.original_image = image.clamp(0.0, 1.0)
             # .to(self.data_device)
@@ -91,11 +91,12 @@ class Camera(nn.Module):
       
         # self.camera_center = persp_cam.get_camera_center()
 
-        self.world_view_transform = getWorld2View3(R, T, translate=torch.Tensor([0,0,-1])).transpose(0,1)
-        self.projection_matrix = projection_matrix(self.znear, self.zfar, self.FoVx, self.FoVy, device="cpu").transpose(0,1)
-        self.full_proj_transform = self.world_view_transform.mm(self.projection_matrix)
+        self.world_view_transform = getWorld2View3(R, T, translate=torch.Tensor([0,0,0])) .transpose(0,1)
 
+        self.projection_matrix = projection_matrix(self.znear, self.zfar, self.FoVx, self.FoVy, device="cpu") .transpose(0,1)
+        self.full_proj_transform = self.world_view_transform.mm(self.projection_matrix)
         self.camera_center = self.world_view_transform.inverse()[3, :3]
+       
         pass
         
 
