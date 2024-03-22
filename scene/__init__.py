@@ -41,6 +41,8 @@ class Scene:
             
         if  load_iteration and load_iteration > 0:
             print("Loading trained model at iteration {}".format(self.loaded_iter))
+        pc_ply_path = os.path.join(self.model_path, "point_cloud", "fine_iteration_" + str(self.loaded_iter),
+                                                           "point_cloud.ply")
 
         self.train_cameras = {}
         self.test_cameras = {}
@@ -51,7 +53,7 @@ class Scene:
             print("Found transforms_train.json file, assuming Blender data set!")
             scene_info = sceneLoadTypeCallbacks["Blender"](args.source_path, args.white_background, args.eval)
         elif os.path.exists(os.path.join(args.source_path, "poses_bounds.npy")):
-            scene_info = sceneLoadTypeCallbacks["dynerf"](args.source_path, test_or_train, args.eval, skip_grid_render, render_img_size, )
+            scene_info = sceneLoadTypeCallbacks["dynerf"](args.source_path, test_or_train, args.eval, skip_grid_render, render_img_size, pc_ply_path)
         elif os.path.exists(os.path.join(args.source_path,"dataset.json")):
             scene_info = sceneLoadTypeCallbacks["nerfies"](args.source_path, False, args.eval)
         # elif os.path.exists(os.path.join(args.source_path,"poses_bounds_spaceport.npy")):

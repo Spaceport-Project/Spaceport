@@ -592,13 +592,14 @@ def format_equirec_render_poses(poses, img_size):
     return cameras
 
 
-def readdynerfInfo(datadir, test_or_train, eval, skip_grid_render, render_img_size):
+def readdynerfInfo(datadir, test_or_train, eval, skip_grid_render, render_img_size, pc_path):
     # loading all the data follow hexplane format
-    # ply_path = os.path.join(datadir, "fused.ply")
-    ply_path = os.path.join(datadir, "fused_origin_scaled005.ply")
+    ply_path = os.path.join(datadir, "fused.ply")
+    # ply_path = os.path.join(datadir, "fused_origin_scaled005.ply")
     # ply_path = os.path.join(datadir, "fused.ply")
     from scene.neural_3D_dataset_NDC import Neural3D_NDC_Dataset
     print("Loading data for dynerf from: ", datadir)
+   
     if test_or_train == "train":
         train_dataset = Neural3D_NDC_Dataset(
         datadir,
@@ -608,6 +609,7 @@ def readdynerfInfo(datadir, test_or_train, eval, skip_grid_render, render_img_si
         scene_bbox_min=[-2.5, -2.0, -1.0],
         scene_bbox_max=[2.5, 2.0, 1.0],
         eval_index=0,
+        skip_render= True
         
         )    
         test_dataset = Neural3D_NDC_Dataset(
@@ -618,7 +620,8 @@ def readdynerfInfo(datadir, test_or_train, eval, skip_grid_render, render_img_si
         scene_bbox_min=[-2.5, -2.0, -1.0],
         scene_bbox_max=[2.5, 2.0, 1.0],
         eval_index=0,
-        skip_grid_render = skip_grid_render
+        skip_render=True
+       
         )
     elif test_or_train == "test":
         test_dataset = Neural3D_NDC_Dataset(
@@ -629,7 +632,9 @@ def readdynerfInfo(datadir, test_or_train, eval, skip_grid_render, render_img_si
         scene_bbox_min=[-2.5, -2.0, -1.0],
         scene_bbox_max=[2.5, 2.0, 1.0],
         eval_index=0,
-        skip_grid_render = skip_grid_render
+        skip_render=False,
+        skip_grid_render = skip_grid_render,
+        pc_path = pc_path
         )
     else:
         raise Exception("Either test or train mode must be selected! Exiting...")
@@ -648,16 +653,21 @@ def readdynerfInfo(datadir, test_or_train, eval, skip_grid_render, render_img_si
 
     # val_cam_infos = format_render_poses(test_dataset.val_poses, test_dataset)
     # assert render_img_size is not None
-   
-    val_cam_infos = format_equirec_render_poses(test_dataset.val_poses, render_img_size) if render_img_size[0] is not None and render_img_size[1] is not None \
+    if test_dataset.val_poses is not None:
+        val_cam_infos = format_equirec_render_poses(test_dataset.val_poses, render_img_size) if render_img_size[0] is not None and render_img_size[1] is not None \
                 else  format_render_poses(test_dataset.val_poses, test_dataset)
-   
-       
+    else:
+        val_cam_infos = None
 
+    bin_path = os.path.join(datadir, "points3D.bin")
+    xyz, rgb, _ = read_points3D_binary(bin_path)
+    # xyz, rgb, _ = increase_point_number(xyz, rgb, np.zeros((xyz.shape[0], 1)), factor=2)
+
+    storePly(ply_path, xyz, rgb)
     pcd = fetchPly_new(ply_path)
     print("origin points,",pcd.points.shape[0])
     
-    print("after points,",pcd.points.shape[0])
+    
 
     scene_info = SceneInfo(point_cloud=pcd,
                            train_cameras=train_dataset,

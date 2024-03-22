@@ -71,7 +71,7 @@ def render_set_all(model_path, name, iteration, views, gaussians, pipeline, back
             # transform = torchvision.transforms.CenterCrop((int(render_img_size[1]*3/4), int(render_img_size[0])))
             # cropped_rendering = transform(rendering)
 
-            torchvision.utils.save_image(rendering, os.path.join(render_path, '{0}_{1:02d}'.format(id, idx) + ".png"))
+            # torchvision.utils.save_image(rendering, os.path.join(render_path, '{0}_{1:02d}'.format(id, idx) + ".png"))
             render_images.append(to8b(rendering).transpose(1,2,0))
             render_list.append(rendering)
             if name in ["train", "test"]:

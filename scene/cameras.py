@@ -12,7 +12,7 @@
 import torch
 from torch import nn
 import math
-# from pytorch3d.renderer.cameras import FoVPerspectiveCameras
+from pytorch3d.renderer.cameras import FoVPerspectiveCameras
 import numpy as np
 from utils.graphics_utils import getWorld2View, getWorld2View3, getProjectionMatrix
 import copy
@@ -91,11 +91,16 @@ class Camera(nn.Module):
       
         # self.camera_center = persp_cam.get_camera_center()
 
-        self.world_view_transform = getWorld2View3(R, T, translate=torch.Tensor([0,0,0])) .transpose(0,1)
-
+        self.world_view_transform = getWorld2View3(R, T, translate=torch.Tensor([0,0,0])).transpose(0,1)
+        world_view_transform = copy.deepcopy(self.world_view_transform)
+        world_view_transform[:3,3]= world_view_transform[3,:3]
+        world_view_transform[3,:3] = torch.Tensor([0,0,0])
+        cam_center = world_view_transform.inverse()[:3, 3]
         self.projection_matrix = projection_matrix(self.znear, self.zfar, self.FoVx, self.FoVy, device="cpu") .transpose(0,1)
         self.full_proj_transform = self.world_view_transform.mm(self.projection_matrix)
+
         self.camera_center = self.world_view_transform.inverse()[3, :3]
+
        
         pass
         

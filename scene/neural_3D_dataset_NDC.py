@@ -8,6 +8,7 @@ import numpy as np
 import glm
 import torch
 import copy
+import open3d as o3d
 from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms as T
@@ -181,28 +182,36 @@ def get_grid():
         z, up
     )
     return np.stack(render_poses)
-def get_circular_grid():
+def get_circular_grid(pc_path):
     c2w = np.eye(4)
   
     up = c2w[:3,1]
     z = c2w[:3,2]
    
     render_poses = render_circular_grid(
-         up
+         up, pc_path
     )
     return np.stack(render_poses)
 
-def render_circular_grid(up):
+def render_circular_grid(up, pc_path):
     render_poses = []
 
-    scale = 0.05
+    scale = 1
     r = Rot.from_euler('y', (-10),  degrees=True)
     tot_angle = 0
     up_g = glm.vec3(up)
-    target_g = glm.vec3(-2.2202862, 0.00043772, 8.18622099) * scale
-    # target_g = glm.vec3(-2.220829,-0.301539,7.800101)
-    pos_target =  glm.vec3(-2.2202862, 0.00043772, 0) * scale
-    direc = pos_target - target_g
+    if pc_path:
+        pcd = o3d.io.read_point_cloud(pc_path)
+        target_g = glm.vec3(pcd.get_center())
+        pos_target = glm.vec3(target_g.x, target_g.y, 0)
+    else:
+        target_g = glm.vec3(0, 0, 0)
+        pos_target = glm.vec3(0, 0, 0)
+
+    # target_g = glm.vec3(-9.31758962e-03, 3.54026612e-05, 4.58770733e-01)
+    # pos_target =  glm.vec3(-9.31758962e-03, 3.54026612e-05, 0)
+ 
+    direc = (pos_target - target_g)
     rot_direc = glm.rotate(glm.mat4(1.0), glm.radians(-60), up_g)
     init_direc_rotated = glm.vec3(rot_direc * glm.vec4(direc, 1)) #copy.deepcopy(direc_rotated)
     rot_incr_direc = glm.rotate(glm.mat4(1.0), glm.radians(10), up_g)
@@ -211,7 +220,7 @@ def render_circular_grid(up):
     rang = [i*scale for i in rang]
     for rr in np.arange(*rang):
       
-        pos = glm.vec3(-glm.sin(glm.pi() * 60/180)*rr, 0. , -np.cos(np.pi * 60/180)*rr)
+        # pos = glm.vec3(-glm.sin(glm.pi() * 60/180)*rr, 0. , -np.cos(np.pi * 60/180)*rr)
        
         direc_rotated = glm.normalize(init_direc_rotated) * rr 
         tot_angle = 0
@@ -237,9 +246,8 @@ def render_circular_grid(up):
 
             render_poses.append(mat)
             inv_mat = np.linalg.inv(mat)
-            # np.savetxt(file,inv_mat)
-          
-            # rot_mat = glm.rotate(glm.mat4(1.0), glm.radians(-30), up_g)
+            # np.savetxt(file, inv_mat)
+            print ("Distance to target point from eye point:", np.linalg.norm(eye_g - target_g))
             # pos = glm.vec3(np.matmul(r.as_matrix(), pos))
             direc_rotated = glm.vec3(rot_incr_direc* glm.vec4(direc_rotated, 1))
             tot_angle += 10
@@ -415,7 +423,9 @@ class Neural3D_NDC_Dataset(Dataset):
         eval_step=1,
         eval_index=0,
         sphere_scale=1.0,
-        skip_grid_render=False,
+        skip_render = True,
+        skip_grid_render=None,
+        pc_path = None
     ):
         cam01_images_fold = os.path.join(datadir,"cam01","images")
         cam01_images = [file for file in os.listdir(cam01_images_fold) if file.endswith(".png") or file.endswith(".jpg") ]
@@ -436,7 +446,11 @@ class Neural3D_NDC_Dataset(Dataset):
         self.N_vis = N_vis
         self.time_scale = time_scale
         self.scene_bbox = torch.tensor([scene_bbox_min, scene_bbox_max])
-        self.skip_grid_render = skip_grid_render
+        self.skip_render = skip_render
+        if self.skip_render:
+            self.skip_grid_render = True
+        else:
+            self.skip_grid_render = skip_grid_render
 
         self.world_bound_scale = 1.1
         self.bd_factor = bd_factor
@@ -451,6 +465,7 @@ class Neural3D_NDC_Dataset(Dataset):
         self.white_bg = False
         self.ndc_ray = True
         self.depth_data = False
+        self.pc_path = pc_path
 
         self.load_meta()
         print(f"Meta data loaded for {self.split} dataset, total image:{len(self)}")
@@ -487,12 +502,16 @@ class Neural3D_NDC_Dataset(Dataset):
 
         # Sample N_views poses for validation - NeRF-like camera trajectory.
         N_views = 120
-        if self.skip_grid_render:
-            self.val_poses = get_spiral(poses, self.near_fars, N_views=N_views)
+        if not self.skip_render:
+
+            if self.skip_grid_render:
+                self.val_poses = get_spiral(poses, self.near_fars, N_views=N_views)
+            else:
+                self.val_poses= get_circular_grid(self.pc_path) #get_grid()
         else:
-            self.val_poses= get_circular_grid() # get_grid()
+            self.val_poses = None
       
-        W, H = self.img_wh
+        # W, H = self.img_wh
         poses_i_train = []
 
         for i in range(len(poses)):
@@ -510,10 +529,10 @@ class Neural3D_NDC_Dataset(Dataset):
         pass
         # self.cam_number = N_cam
         # self.time_number = N_time
-    def get_val_pose(self):
-        render_poses = self.val_poses
-        render_times = torch.linspace(0.0, 1.0, render_poses.shape[0]) * 2.0 - 1.0
-        return render_poses, self.time_scale * render_times
+    # def get_val_pose(self):
+    #     render_poses = self.val_poses
+    #     render_times = torch.linspace(0.0, 1.0, render_poses.shape[0]) * 2.0 - 1.0
+    #     return render_poses, self.time_scale * render_times
     def load_images_path(self,videos):
         images= []
         image_paths= []
