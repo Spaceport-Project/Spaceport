@@ -63,17 +63,18 @@ def render_set_all(model_path, name, iteration, views, gaussians, pipeline, back
         for idx in tqdm(range(num_frames)):
             if idx == 0:
                 time1 = time()
-            # if idx > 0:
-            #     break
+            if idx != 14:
+                continue
+
             view.time = idx/num_frames
             # print(f"views[{idx}]: {view.image_name}, {view.R}")
             rendering = render(view, gaussians, pipeline, background, render_img_size=render_img_size, equirec_flag=True)["render"]
             # transform = torchvision.transforms.CenterCrop((int(render_img_size[1]*3/4), int(render_img_size[0])))
             # cropped_rendering = transform(rendering)
 
-            # torchvision.utils.save_image(rendering, os.path.join(render_path, '{0}_{1:02d}'.format(id, idx) + ".png"))
+            torchvision.utils.save_image(torch.flip(rendering, dims=[1]), os.path.join(render_path, '{0}_{1:02d}'.format(id, idx) + ".png"))
             render_images.append(to8b(rendering).transpose(1,2,0))
-            render_list.append(rendering)
+            # render_list.append(rendering)
             if name in ["train", "test"]:
                 gt_list2.append(to8b(view.original_image).transpose(1,2,0))
                 gt = view.original_image[0:3, :, :]

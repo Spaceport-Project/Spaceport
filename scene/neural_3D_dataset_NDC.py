@@ -202,21 +202,27 @@ def render_circular_grid(up, pc_path):
     up_g = glm.vec3(up)
     if pc_path:
         pcd = o3d.io.read_point_cloud(pc_path)
-        target_g = glm.vec3(pcd.get_center())
-        pos_target = glm.vec3(target_g.x, target_g.y, 0)
+        print(pcd.get_center())
+        target_g = glm.vec3(pcd.get_center()) 
+        target_g.y += -0.2
+        pos_target = glm.vec3(target_g.x, target_g.y , 0)
     else:
         target_g = glm.vec3(0, 0, 0)
         pos_target = glm.vec3(0, 0, 0)
 
+
+    # target_g = glm.vec3(-2.2202862, 0.00043772, 8.18622099) 
+    # pos_target =  glm.vec3(-2.2202862, 0.00043772, 0) 
     # target_g = glm.vec3(-9.31758962e-03, 3.54026612e-05, 4.58770733e-01)
     # pos_target =  glm.vec3(-9.31758962e-03, 3.54026612e-05, 0)
  
     direc = (pos_target - target_g)
-    rot_direc = glm.rotate(glm.mat4(1.0), glm.radians(-60), up_g)
+    rot_direc = glm.rotate(glm.mat4(1.0), glm.radians(60), up_g)
     init_direc_rotated = glm.vec3(rot_direc * glm.vec4(direc, 1)) #copy.deepcopy(direc_rotated)
-    rot_incr_direc = glm.rotate(glm.mat4(1.0), glm.radians(10), up_g)
-    # file = open("val_poses.txt", "w")
+    rot_incr_direc = glm.rotate(glm.mat4(1.0), glm.radians(-10), up_g)
+    file = open("val_poses.txt", "w")
     rang = [4,13,2]
+    # rang = [6.3, 21, 3.15] for scale = 0.11
     rang = [i*scale for i in rang]
     for rr in np.arange(*rang):
       
@@ -225,7 +231,7 @@ def render_circular_grid(up, pc_path):
         direc_rotated = glm.normalize(init_direc_rotated) * rr 
         tot_angle = 0
         for j in range(100):
-            if tot_angle > 100: 
+            if tot_angle > 120: 
                 break
            
             eye_g = target_g + direc_rotated
@@ -246,7 +252,7 @@ def render_circular_grid(up, pc_path):
 
             render_poses.append(mat)
             inv_mat = np.linalg.inv(mat)
-            # np.savetxt(file, inv_mat)
+            np.savetxt(file, inv_mat)
             print ("Distance to target point from eye point:", np.linalg.norm(eye_g - target_g))
             # pos = glm.vec3(np.matmul(r.as_matrix(), pos))
             direc_rotated = glm.vec3(rot_incr_direc* glm.vec4(direc_rotated, 1))
@@ -254,7 +260,7 @@ def render_circular_grid(up, pc_path):
 
            
             pass
-    # file.close()
+    file.close()
 
     return render_poses
 
