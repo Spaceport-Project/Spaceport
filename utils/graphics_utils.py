@@ -70,7 +70,7 @@ def getProjectionMatrix(znear, zfar, fovX, fovY):
     P[2, 3] = -(zfar * znear) / (zfar - znear)
     return P
 
-def getWorld2View3(R, t, translate=torch.Tensor([.0, .0, .0], device="cpu"), scale=1.0): # Equirec Implementation
+def getWorld2View3(R, t, translate=torch.Tensor([.0, .0, .0], device="cpu"), scale=1.0): # Equirec Repo Implementation
     t = t.squeeze(0)
     R = R.squeeze(0)
     Rt = torch.zeros(4, 4, device="cpu")
