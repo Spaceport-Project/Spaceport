@@ -148,15 +148,14 @@ def scene_reconstruction(dataset, opt, hyper, pipe, testing_iterations, saving_i
 
         # dynerf's branch
         if opt.dataloader and not load_in_memory:
-            # try:
-            viewpoint_cams = next(loader)
-            # except StopIteration:
-            # except Exception as e:
-            print("reset dataloader into random dataloader. -> ")
-            if not random_loader:
-                viewpoint_stack_loader = DataLoader(viewpoint_stack, batch_size=opt.batch_size,shuffle=True,num_workers=0,collate_fn=list)
-                random_loader = True
-            loader = iter(viewpoint_stack_loader)
+            try:
+                viewpoint_cams = next(loader)
+            except StopIteration:
+                print("reset dataloader into random dataloader. -> ")
+                if not random_loader:
+                    viewpoint_stack_loader = DataLoader(viewpoint_stack, batch_size=opt.batch_size,shuffle=True,num_workers=0,collate_fn=list)
+                    random_loader = True
+                loader = iter(viewpoint_stack_loader)
 
         else:
             idx = 0
