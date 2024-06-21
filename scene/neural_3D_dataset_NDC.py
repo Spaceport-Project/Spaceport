@@ -10,6 +10,7 @@ from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms as T
 from tqdm import tqdm
+from utils.general_utils import PILtoTorch
 
 
 def normalize(v):
@@ -271,10 +272,10 @@ class Neural3D_NDC_Dataset(Dataset):
         poses_arr = np.load(os.path.join(self.root_dir, "poses_bounds.npy"))
         poses = poses_arr[:, :-2].reshape([-1, 3, 5])  # (N_cams, 3, 5)
         self.near_fars = poses_arr[:, -2:]
-        videos = glob.glob(os.path.join(self.root_dir, "cam*.mp4"))
+        videos = glob.glob(os.path.join(self.root_dir, "cam*"))
         videos = sorted(videos)
         # breakpoint()
-        assert len(videos) == poses_arr.shape[0]
+        # assert len(videos) == poses_arr.shape[0]
 
         H, W, focal = poses[0, :, -1]
         focal = focal / self.downsample
@@ -303,14 +304,22 @@ class Neural3D_NDC_Dataset(Dataset):
                 poses_i_train.append(i)
         self.poses = poses[poses_i_train]
         self.poses_all = poses
-        self.image_paths, self.image_poses, self.image_times, N_cam, N_time = self.load_images_path(videos, self.split)
-        self.cam_number = N_cam
-        self.time_number = N_time
+        # self.image_paths, self.image_poses, self.image_times, N_cam, N_time = self.load_images_path(videos, self.split)
+        if self.split == "train" or self.split == "test":
+            self.images, self.image_paths, self.image_poses, self.image_times, N_cam, N_time = self.load_images_path(videos)
+            # self.image_paths, self.image_poses, self.image_times, N_cam, N_time = self.load_images_path(videos)
+        else:
+            self.images, self.image_paths, self.image_poses, self.image_times = [], [], [], []
+        # self.cam_number = N_cam
+        # self.time_number = N_time
+
     def get_val_pose(self):
         render_poses = self.val_poses
         render_times = torch.linspace(0.0, 1.0, render_poses.shape[0]) * 2.0 - 1.0
         return render_poses, self.time_scale * render_times
-    def load_images_path(self,videos,split):
+    
+    def load_images_path(self,videos):
+        images = []
         image_paths = []
         image_poses = []
         image_times = []
@@ -320,10 +329,10 @@ class Neural3D_NDC_Dataset(Dataset):
         for index, video_path in enumerate(videos):
             
             if index == self.eval_index:
-                if split =="train":
+                if self.split =="train":
                     continue
             else:
-                if split == "test":
+                if self.split == "test":
                     continue
             N_cams +=1
             count = 0
@@ -357,6 +366,7 @@ class Neural3D_NDC_Dataset(Dataset):
             for idx, path in enumerate(images_path):
                 if this_count >=countss:break
                 image_paths.append(os.path.join(image_path,path))
+                img_path = os.path.join(image_path,path)
                 pose = np.array(self.poses_all[index])
                 R = pose[:3,:3]
                 R = -R
@@ -364,6 +374,17 @@ class Neural3D_NDC_Dataset(Dataset):
                 T = -pose[:3,3].dot(R)
                 image_times.append(idx/countss)
                 image_poses.append((R,T))
+
+                # print(f"{img_path} is processing..")
+                img = Image.open(img_path)
+                im_data = np.array(img.convert("RGBA"))
+                bg = np.array([1,1,1])
+                norm_data = im_data / 255.0
+                arr = norm_data[:,:,:3] * norm_data[:, :, 3:4] + bg * (1 - norm_data[:, :, 3:4])
+                img = Image.fromarray(np.array(arr*255.0, dtype=np.byte), "RGB")
+                img = PILtoTorch(img,(img.size[0], img.size[1]))
+                images.append(img)
+
                 # if self.downsample != 1.0:
                 #     img = video_frame.resize(self.img_wh, Image.LANCZOS)
                 # img.save(os.path.join(image_path,"%04d.png"%count))
@@ -372,15 +393,19 @@ class Neural3D_NDC_Dataset(Dataset):
 
                 #     video_data_save[count] = img.permute(1,2,0)
                 #     count += 1
-        return image_paths, image_poses, image_times, N_cams, N_time
+        return images, image_paths, image_poses, image_times, N_cams, N_time
+    
     def __len__(self):
         return len(self.image_paths)
+    
     def __getitem__(self,index):
-        img = Image.open(self.image_paths[index])
-        img = img.resize(self.img_wh, Image.LANCZOS)
+        return self.images[index], self.image_poses[index], self.image_times[index]
+    # def __getitem__(self,index):
+        # img = Image.open(self.image_paths[index])
+        # img = img.resize(self.img_wh, Image.LANCZOS)
+        # img = self.transform(img)
+        # return img, self.image_poses[index], self.image_times[index]
 
-        img = self.transform(img)
-        return img, self.image_poses[index], self.image_times[index]
     def load_pose(self,index):
         return self.image_poses[index]
 

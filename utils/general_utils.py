@@ -23,10 +23,18 @@ def PILtoTorch(pil_image, resolution):
         resized_image_PIL = pil_image.resize(resolution)
     else:
         resized_image_PIL = pil_image
-    if np.array(resized_image_PIL).max()!=1:
-        resized_image = torch.from_numpy(np.array(resized_image_PIL)) / 255.0
-    else:
-        resized_image = torch.from_numpy(np.array(resized_image_PIL))
+        
+    # ---------------------- Equirec GPU Dataloader Implementation ----------------------
+    
+    resized_image = torch.from_numpy(np.array(resized_image_PIL)) / 255.0
+    resized_image = resized_image.to(device="cuda")
+
+    # if np.array(resized_image_PIL).max()!=1:
+    #     resized_image = torch.from_numpy(np.array(resized_image_PIL)) / 255.0
+    # else:
+    #     resized_image = torch.from_numpy(np.array(resized_image_PIL))
+    # ---------------------- Equirec GPU Dataloader Implementation ----------------------
+
     if len(resized_image.shape) == 3:
         return resized_image.permute(2, 0, 1)
     else:

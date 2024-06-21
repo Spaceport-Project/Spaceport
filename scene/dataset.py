@@ -6,6 +6,7 @@ from utils.graphics_utils import fov2focal, focal2fov
 import torch
 from utils.camera_utils import loadCam
 from utils.graphics_utils import focal2fov
+
 class FourDGSdataset(Dataset):
     def __init__(
         self,
@@ -16,9 +17,9 @@ class FourDGSdataset(Dataset):
         self.dataset = dataset
         self.args = args
         self.dataset_type=dataset_type
+    
     def __getitem__(self, index):
         # breakpoint()
-
         if self.dataset_type != "PanopticSports":
             try:
                 image, w2c, time = self.dataset[index]
@@ -41,6 +42,6 @@ class FourDGSdataset(Dataset):
                               mask=mask)
         else:
             return self.dataset[index]
-    def __len__(self):
-        
+    
+    def __len__(self):    
         return len(self.dataset)
