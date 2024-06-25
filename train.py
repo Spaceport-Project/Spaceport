@@ -72,7 +72,8 @@ def scene_reconstruction(dataset, opt, hyper, pipe, testing_iterations, saving_i
     
     progress_bar = tqdm(range(first_iter, final_iter), desc="Training progress")
     first_iter += 1
-    # lpips_model = lpips.LPIPS(net="alex").cuda()
+    lpips_model = lpips.LPIPS(net="alex").cuda()
+    # lpips_model = lpips.LPIPS(net="vgg").cuda()
     video_cams = scene.getVideoCameras()
     test_cams = scene.getTestCameras()
     train_cams = scene.getTrainCameras()
@@ -201,7 +202,9 @@ def scene_reconstruction(dataset, opt, hyper, pipe, testing_iterations, saving_i
         gt_image_tensor = torch.cat(gt_images,0)
         # Loss
         # breakpoint()
+
         Ll1 = l1_loss(image_tensor, gt_image_tensor[:,:3,:,:])
+        # Ll1 = l2_loss(image_tensor, gt_image_tensor[:,:3,:,:]) # For L2 LOSS USAGE !!, first uncomment
 
         psnr_ = psnr(image_tensor, gt_image_tensor).mean().double()
         # norm
@@ -215,9 +218,9 @@ def scene_reconstruction(dataset, opt, hyper, pipe, testing_iterations, saving_i
         if opt.lambda_dssim != 0:
             ssim_loss = ssim(image_tensor,gt_image_tensor)
             loss += opt.lambda_dssim * (1.0-ssim_loss)
-        # if opt.lambda_lpips !=0:
-        #     lpipsloss = lpips_loss(image_tensor,gt_image_tensor,lpips_model)
-        #     loss += opt.lambda_lpips * lpipsloss
+        if opt.lambda_lpips !=0:
+            lpipsloss = lpips_loss(image_tensor,gt_image_tensor,lpips_model)
+            loss += opt.lambda_lpips * lpipsloss
         
         loss.backward()
         if torch.isnan(loss).any():
@@ -286,9 +289,6 @@ def scene_reconstruction(dataset, opt, hyper, pipe, testing_iterations, saving_i
                 if iteration % opt.opacity_reset_interval == 0:
                     print("reset opacity")
                     gaussians.reset_opacity()
-                    
-            
-
             # Optimizer step
             if iteration < opt.iterations:
                 gaussians.optimizer.step()
@@ -334,6 +334,20 @@ def prepare_output_and_logger(expname):
     with open(os.path.join(args.model_path, "cfg_args"), 'w') as cfg_log_f:
         cfg_log_f.write(str(Namespace(**vars(args))))
 
+    import shutil
+    # copying config file to fast render
+
+    source = os.path.join(os.getcwd(), args.configs) # /home/alper/Spaceport/arguments/...
+    print("source -> ", source)
+    # Destination path
+    destination = os.path.join(os.path.join(os.getcwd(), args.model_path), "config.py") # /home/alper/Spaceport/output/test_output/config.py
+    print("destination -> ", destination)
+    try:
+        shutil.copy(source, destination)
+        print(f"Config file copied from {source} to {destination}")
+    except Exception as e:
+        print("Cannot copy args file to output -> ", e)
+
     # Create Tensorboard writer
     tb_writer = None
     if TENSORBOARD_FOUND:
@@ -360,6 +374,7 @@ def training_report(tb_writer, iteration, Ll1, loss, l1_loss, elapsed, testing_i
             if config['cameras'] and len(config['cameras']) > 0:
                 l1_test = 0.0
                 psnr_test = 0.0
+                ssim_test = 0.0
                 for idx, viewpoint in enumerate(config['cameras']):
                     image = torch.clamp(renderFunc(viewpoint, scene.gaussians,stage=stage, cam_type=dataset_type, *renderArgs)["render"], 0.0, 1.0)
                     if dataset_type == "PanopticSports":
@@ -373,10 +388,15 @@ def training_report(tb_writer, iteration, Ll1, loss, l1_loss, elapsed, testing_i
                                 tb_writer.add_images(stage + "/"+config['name'] + "_view_{}/ground_truth".format(viewpoint.image_name), gt_image[None], global_step=iteration)
                     except:
                         pass
+
                     l1_test += l1_loss(image, gt_image).mean().double()
+                    # l1_test += l2_loss(image, gt_image).mean().double() # For L2 LOSS USAGE !!, second uncomment
                     # mask=viewpoint.mask
-                    
+
+                    ssim_test += ssim(image,gt_image).item()
+
                     psnr_test += psnr(image, gt_image, mask=None).mean().double()
+
                 psnr_test /= len(config['cameras'])
                 l1_test /= len(config['cameras'])          
                 print("\n[ITER {}] Evaluating {}: L1 {} PSNR {}".format(iteration, config['name'], l1_test, psnr_test))
@@ -384,6 +404,7 @@ def training_report(tb_writer, iteration, Ll1, loss, l1_loss, elapsed, testing_i
                 if tb_writer:
                     tb_writer.add_scalar(stage + "/"+config['name'] + '/loss_viewpoint - l1_loss', l1_test, iteration)
                     tb_writer.add_scalar(stage+"/"+config['name'] + '/loss_viewpoint - psnr', psnr_test, iteration)
+                    tb_writer.add_scalar(stage+"/"+config['name'] + '/loss_viewpoint - ssim', ssim_test, iteration)
 
         if tb_writer:
             tb_writer.add_histogram(f"{stage}/scene/opacity_histogram", scene.gaussians.get_opacity, iteration)
@@ -421,7 +442,8 @@ if __name__ == "__main__":
     parser.add_argument("--checkpoint_iterations", nargs="+", type=int, default=[])
     parser.add_argument("--start_checkpoint", type=str, default = None)
     parser.add_argument("--expname", type=str, default = "")
-    parser.add_argument("--configs", type=str, default = "")
+    parser.add_argument("--configs", type=str, default = "arguments/dynerf/default.py")
+    parser.add_argument("--render", action="store_true")
     
     args = parser.parse_args(sys.argv[1:])
     args.save_iterations.append(args.iterations)
@@ -439,6 +461,15 @@ if __name__ == "__main__":
     network_gui.init(args.ip, args.port)
     torch.autograd.set_detect_anomaly(args.detect_anomaly)
     training(lp.extract(args), hp.extract(args), op.extract(args), pp.extract(args), args.test_iterations, args.save_iterations, args.checkpoint_iterations, args.start_checkpoint, args.debug_from, args.expname)
+
+    if args.render:
+        try:
+            print("\nRender after training..")
+            from render import safe_state, render_sets
+            safe_state(args.quiet)
+            render_sets(lp.extract(args), hp.extract(args), -1, pp.extract(args), skip_train=True, skip_test=False, skip_video=False)
+        except Exception as e:
+            print("Render Does not work due to -> ", e)
 
     # All done
     print("\nTraining complete.")
