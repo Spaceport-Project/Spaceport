@@ -262,7 +262,7 @@ class Neural3D_NDC_Dataset(Dataset):
         self.depth_data = False
 
         self.load_meta()
-        print(f"meta data loaded, total image:{len(self)}")
+        print(f"meta data loaded, total image on {self.split} : {len(self)}")
 
     def load_meta(self):
         """

@@ -47,7 +47,7 @@ class ParamGroup:
 class ModelParams(ParamGroup): 
     def __init__(self, parser, sentinel=False):
         self.sh_degree = 3
-        self._source_path = ""
+        self._source_path = "/mnt/Elements2/04-04-2024_Data/processed_data/data_faruk_png_30fps_phase2/101-120/masked_undistorted_images/"
         self._model_path = ""
         self._images = "images"
         self._resolution = -1

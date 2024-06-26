@@ -208,7 +208,6 @@ def scene_reconstruction(dataset, opt, hyper, pipe, testing_iterations, saving_i
 
         psnr_ = psnr(image_tensor, gt_image_tensor).mean().double()
         # norm
-        
 
         loss = Ll1
         if stage == "fine" and hyper.time_smoothness_weight != 0:
@@ -318,6 +317,7 @@ def training(dataset, hyper, opt, pipe, testing_iterations, saving_iterations, c
     # scene_reconstruction(dataset, opt, hyper, pipe, testing_iterations, saving_iterations,
     #                      checkpoint_iterations, checkpoint, debug_from,
     #                      gaussians, scene, "fine", tb_writer, opt.iterations,timer)
+    return psnr_test_list_coarse, psnr_test_list_fine
 
 def prepare_output_and_logger(expname):    
     if not args.model_path:
@@ -334,19 +334,19 @@ def prepare_output_and_logger(expname):
     with open(os.path.join(args.model_path, "cfg_args"), 'w') as cfg_log_f:
         cfg_log_f.write(str(Namespace(**vars(args))))
 
-    import shutil
-    # copying config file to fast render
-
-    source = os.path.join(os.getcwd(), args.configs) # /home/alper/Spaceport/arguments/...
-    print("source -> ", source)
-    # Destination path
-    destination = os.path.join(os.path.join(os.getcwd(), args.model_path), "config.py") # /home/alper/Spaceport/output/test_output/config.py
-    print("destination -> ", destination)
-    try:
-        shutil.copy(source, destination)
-        print(f"Config file copied from {source} to {destination}")
-    except Exception as e:
-        print("Cannot copy args file to output -> ", e)
+    script_name = sys.argv[0] # train.py, optuna_optimization.py etc.
+    if script_name == "train.py":
+        # external execution like optuna_optimization.pydoes not enter this area.
+        # copying config file to fast render
+        import shutil
+        
+        source = os.path.join(os.getcwd(), args.configs) # /home/alper/Spaceport/arguments/...
+        destination = os.path.join(os.path.join(os.getcwd(), args.model_path), "config.py") # /home/alper/Spaceport/output/test_output/config.py
+        try:
+            shutil.copy(source, destination)
+            print(f"Config file copied from {source} to {destination}")
+        except Exception as e:
+            print("Cannot copy args file to output -> ", e)
 
     # Create Tensorboard writer
     tb_writer = None
@@ -366,7 +366,6 @@ def training_report(tb_writer, iteration, Ll1, loss, l1_loss, elapsed, testing_i
     # Report test and samples of training set
     if iteration in testing_iterations:
         torch.cuda.empty_cache()
-        # 
         validation_configs = ({'name': 'test', 'cameras' : [scene.getTestCameras()[idx % len(scene.getTestCameras())] for idx in range(10, 5000, 299)]},
                               {'name': 'train', 'cameras' : [scene.getTrainCameras()[idx % len(scene.getTrainCameras())] for idx in range(10, 5000, 299)]})
 
@@ -398,6 +397,13 @@ def training_report(tb_writer, iteration, Ll1, loss, l1_loss, elapsed, testing_i
                     psnr_test += psnr(image, gt_image, mask=None).mean().double()
 
                 psnr_test /= len(config['cameras'])
+
+                if stage == "coarse":
+                    psnr_test_list_coarse.append(psnr_test.item()) # for optuna param optimization. Appended value example -> 26.422
+
+                if stage == "fine":
+                    psnr_test_list_fine.append(psnr_test.item())
+
                 l1_test /= len(config['cameras'])          
                 print("\n[ITER {}] Evaluating {}: L1 {} PSNR {}".format(iteration, config['name'], l1_test, psnr_test))
                 # print("sh feature",scene.gaussians.get_features.shape)
@@ -420,6 +426,46 @@ def setup_seed(seed):
      np.random.seed(seed)
      random.seed(seed)
      torch.backends.cudnn.deterministic = True
+
+def get_params() -> Namespace:
+    # for external using with Optuna
+    parser = ArgumentParser(description="Training script parameters")
+    global psnr_test_list_coarse
+    global psnr_test_list_fine
+    psnr_test_list_coarse = list()
+    psnr_test_list_fine = list()
+
+    setup_seed(6666)
+    lp = ModelParams(parser)
+    op = OptimizationParams(parser)
+    pp = PipelineParams(parser)
+    hp = ModelHiddenParams(parser)
+    parser.add_argument('--ip', type=str, default="127.0.0.1")
+    parser.add_argument('--port', type=int, default=6009)
+    parser.add_argument('--debug_from', type=int, default=-1)
+    parser.add_argument('--detect_anomaly', action='store_true', default=False)
+
+    parser.add_argument("--test_iterations", nargs="+", type=int, default=[500*i for i in range(100)])
+    parser.add_argument("--save_iterations", nargs="+", type=int, default=[1000, 3000, 4000, 5000, 6000, 7_000, 9000, 10000, 12000, 14000, 16000, 20000, 25000, 30_000, 45000, 60000])
+
+    parser.add_argument("--quiet", action="store_true")
+    parser.add_argument("--checkpoint_iterations", nargs="+", type=int, default=[])
+    parser.add_argument("--start_checkpoint", type=str, default = None)
+    parser.add_argument("--expname", type=str, default = "")
+    parser.add_argument("--configs", type=str, default = "arguments/dynerf/default.py")
+    parser.add_argument("--render", action="store_true")
+    
+    global args
+    args = parser.parse_args(sys.argv[1:])
+    args.save_iterations.append(args.iterations)
+    if args.configs:
+        import mmcv
+        from utils.params_utils import merge_hparams
+        config = mmcv.Config.fromfile(args.configs)
+        args = merge_hparams(args, config)
+    
+    return args, lp, op, pp, hp
+
 if __name__ == "__main__":
     # Set up command line argument parser
     # torch.set_default_tensor_type('torch.FloatTensor')
@@ -460,7 +506,7 @@ if __name__ == "__main__":
     # Start GUI server, configure and run training
     network_gui.init(args.ip, args.port)
     torch.autograd.set_detect_anomaly(args.detect_anomaly)
-    training(lp.extract(args), hp.extract(args), op.extract(args), pp.extract(args), args.test_iterations, args.save_iterations, args.checkpoint_iterations, args.start_checkpoint, args.debug_from, args.expname)
+    _, __ = training(lp.extract(args), hp.extract(args), op.extract(args), pp.extract(args), args.test_iterations, args.save_iterations, args.checkpoint_iterations, args.start_checkpoint, args.debug_from, args.expname)
 
     if args.render:
         try:

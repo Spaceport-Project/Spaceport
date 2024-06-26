@@ -445,25 +445,40 @@ def readdynerfInfo(datadir,use_bg_points,eval):
     # ply_path = os.path.join(datadir, "points3D_dense.ply")
     # ply_path = os.path.join(datadir, "points3D_downsample2.ply")
     ply_path = os.path.join(datadir, "fused.ply")
-    from scene.neural_3D_dataset_NDC import Neural3D_NDC_Dataset
-    train_dataset = Neural3D_NDC_Dataset(
-    datadir,
-    "train",
-    1.0,
-    time_scale=1,
-    scene_bbox_min=[-2.5, -2.0, -1.0],
-    scene_bbox_max=[2.5, 2.0, 1.0],
-    eval_index=0,
-        )    
-    test_dataset = Neural3D_NDC_Dataset(
-    datadir,
-    "test",
-    1.0,
-    time_scale=1,
-    scene_bbox_min=[-2.5, -2.0, -1.0],
-    scene_bbox_max=[2.5, 2.0, 1.0],
-    eval_index=0,
-        )
+    
+    if os.path.exists(os.path.join(datadir, "train_dataset.pt")) and os.path.exists(os.path.join(datadir, "test_dataset.pt")):
+        print("Dataset Cache have been Founded, Skipping Dataset Creation..")
+        train_dataset = torch.load(os.path.join(datadir, "train_dataset.pt"))
+        test_dataset = torch.load(os.path.join(datadir, "test_dataset.pt"))
+    else:
+        from scene.neural_3D_dataset_NDC import Neural3D_NDC_Dataset
+        print("Dataset Cache Does not Found, Creating Dataset..")
+        train_dataset = Neural3D_NDC_Dataset(
+        datadir,
+        "train",
+        1.0,
+        time_scale=1,
+        scene_bbox_min=[-2.5, -2.0, -1.0],
+        scene_bbox_max=[2.5, 2.0, 1.0],
+        eval_index=0,
+            )    
+        test_dataset = Neural3D_NDC_Dataset(
+        datadir,
+        "test",
+        1.0,
+        time_scale=1,
+        scene_bbox_min=[-2.5, -2.0, -1.0],
+        scene_bbox_max=[2.5, 2.0, 1.0],
+        eval_index=0,
+            )
+    
+    if not os.path.exists(os.path.join(datadir, "train_dataset.pt")):
+        print("train_dataset.pt Cache Does not Found, saving..")
+        torch.save(train_dataset, os.path.join(datadir, "train_dataset.pt"))
+    
+    if not os.path.exists(os.path.join(datadir, "test_dataset.pt")):
+        print("test_dataset.pt Cache Does not Found, saving..")
+        torch.save(test_dataset, os.path.join(datadir, "test_dataset.pt"))
     
     max_time = len(os.listdir(os.path.join(datadir,"cam01","images")))
 
