@@ -23,9 +23,9 @@ OptimizationParams = dict(
 
     dataloader=True,
 
-    iterations = 10_000,
+    iterations = 30_000,
     batch_size=1,
-    coarse_iterations = 1000,
+    coarse_iterations = 7000,
 
     densify_until_iter = 15_000,
     opacity_lr=0.0005,

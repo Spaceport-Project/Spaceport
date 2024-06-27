@@ -16,6 +16,7 @@ from random import randint
 from utils.loss_utils import l1_loss, ssim, l2_loss, lpips_loss
 from gaussian_renderer import render, network_gui
 import sys
+from statistics import mean
 from scene import Scene, GaussianModel
 from utils.general_utils import safe_state
 import uuid
@@ -397,7 +398,7 @@ def training_report(tb_writer, iteration, Ll1, loss, l1_loss, elapsed, testing_i
                     psnr_test += psnr(image, gt_image, mask=None).mean().double()
 
                 psnr_test /= len(config['cameras'])
-
+                
                 if stage == "coarse":
                     psnr_test_list_coarse.append(psnr_test.item()) # for optuna param optimization. Appended value example -> 26.422
 
@@ -469,6 +470,11 @@ def get_params() -> Namespace:
 if __name__ == "__main__":
     # Set up command line argument parser
     # torch.set_default_tensor_type('torch.FloatTensor')
+    global psnr_test_list_coarse
+    global psnr_test_list_fine
+    psnr_test_list_coarse = list()
+    psnr_test_list_fine = list()
+
     torch.cuda.empty_cache()
     parser = ArgumentParser(description="Training script parameters")
     setup_seed(6666)
@@ -506,8 +512,9 @@ if __name__ == "__main__":
     # Start GUI server, configure and run training
     network_gui.init(args.ip, args.port)
     torch.autograd.set_detect_anomaly(args.detect_anomaly)
-    _, __ = training(lp.extract(args), hp.extract(args), op.extract(args), pp.extract(args), args.test_iterations, args.save_iterations, args.checkpoint_iterations, args.start_checkpoint, args.debug_from, args.expname)
+    _, psnr_test_list_fine = training(lp.extract(args), hp.extract(args), op.extract(args), pp.extract(args), args.test_iterations, args.save_iterations, args.checkpoint_iterations, args.start_checkpoint, args.debug_from, args.expname)
 
+    print("Fine PSNR List Last Five Item Mean (From train.py) -> ", mean(psnr_test_list_fine[-5:]))
     if args.render:
         try:
             print("\nRender after training..")

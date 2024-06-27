@@ -9,4 +9,5 @@ screenshots
 data/
 video_player/media/**
 submodules/
+*.sqlite3
 
