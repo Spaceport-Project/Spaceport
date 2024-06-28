@@ -62,6 +62,10 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
     # add deformation to each points
     # deformation = pc.get_deformation
 
+    # --------------------- Equirec Repo Attributes ---------------------
+    # means3D = pc.get_xyz
+    # time = torch.tensor(viewpoint_camera.time).to(means3D.device).repeat(means3D.shape[0],1)
+    # --------------------- Equirec Repo Attributes ---------------------
     
     means2D = screenspace_points
     opacity = pc._opacity
@@ -80,6 +84,11 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
     deformation_point = pc._deformation_table
     if "coarse" in stage:
         means3D_final, scales_final, rotations_final, opacity_final, shs_final = means3D, scales, rotations, opacity, shs
+
+        # --------------------- Equirec Repo Attributes ---------------------
+        # means3D_deform, scales_deform, rotations_deform, opacity_deform = means3D, scales, rotations, opacity
+        # --------------------- Equirec Repo Attributes ---------------------
+    
     elif "fine" in stage:
         # time0 = get_time()
         # means3D_deform, scales_deform, rotations_deform, opacity_deform = pc._deformation(means3D[deformation_point], scales[deformation_point], 
@@ -88,10 +97,31 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
         means3D_final, scales_final, rotations_final, opacity_final, shs_final = pc._deformation(means3D, scales, 
                                                                  rotations, opacity, shs,
                                                                  time)
+        
+        # --------------------- Equirec Repo Attributes ---------------------
+        # means3D_deform, scales_deform, rotations_deform, opacity_deform = pc._deformation(means3D[deformation_point], scales[deformation_point], 
+        #                                                                  rotations[deformation_point], opacity[deformation_point],
+        #                                                                  time[deformation_point])
+        # --------------------- Equirec Repo Attributes ---------------------
     else:
         raise NotImplementedError
 
 
+    # --------------------- Equirec Repo Attributes ---------------------
+    # means3D_final = torch.zeros_like(means3D)
+    # rotations_final = torch.zeros_like(rotations)
+    # scales_final = torch.zeros_like(scales)
+    # opacity_final = torch.zeros_like(opacity)
+    # means3D_final[deformation_point] =  means3D_deform
+    # rotations_final[deformation_point] =  rotations_deform
+    # scales_final[deformation_point] =  scales_deform
+    # opacity_final[deformation_point] = opacity_deform
+    # means3D_final[~deformation_point] = means3D[~deformation_point]
+    # rotations_final[~deformation_point] = rotations[~deformation_point]
+    # scales_final[~deformation_point] = scales[~deformation_point]
+    # opacity_final[~deformation_point] = opacity[~deformation_point]
+    
+    # --------------------- Equirec Repo Attributes ---------------------
 
     # time2 = get_time()
     # print("asset value:",time2-time1)
