@@ -4,14 +4,13 @@ import sys
 import time
 import json 
 import shutil
+import gc
 
 import optuna
 import torch
 import numpy as np
 
 from train import training, get_params
-from arguments import ModelParams, PipelineParams, OptimizationParams, ModelHiddenParams
-from argparse import ArgumentParser, Namespace
 
 # FOR OPACITY 
 # opacity_threshold_coarse, float. default -> 0.005
@@ -39,12 +38,6 @@ from argparse import ArgumentParser, Namespace
 # deformation_lr_delay_mult, float. default 0.01
 # deformation_lr_final, float. default 0.000016
 
-# FOR LOSS (WIP)
-# L1, default loss function
-# L2
-# Lx + SSIM
-# Lx + LPIPS
-
 # FOR MODEL PARAMS
 # net_width int, default 64
 # defor_depth int, default 1
@@ -52,7 +45,14 @@ from argparse import ArgumentParser, Namespace
 # time_smoothness_weight float, default 0.01
 # l1_time_planes float, default 0.0001
 
+# FOR LOSS (WIP)
+# L1, default loss function
+# L2
+# Lx + SSIM
+# Lx + LPIPS
+
 def all_params_obj(trial):
+    torch.cuda.empty_cache()
     try:
         shutil.rmtree(f"/home/alper/Spaceport/output/Optimization_folder") # Do not change this name
         print("Removed Optimization_folder")
@@ -65,10 +65,10 @@ def all_params_obj(trial):
     args.deformation_lr_init = trial.suggest_float('deformation_lr_init', 0.000016, 0.0016)
     args.deformation_lr_delay_mult = trial.suggest_float('deformation_lr_delay_mult', 0.001, 0.1)
 
-    args.no_do = trial.suggest_categorical("no_do", [True, False])
-    args.no_ds = trial.suggest_categorical("no_ds", [True, False])
-    args.no_dx = trial.suggest_categorical("no_dx", [True, False])
-    args.no_dshs = trial.suggest_categorical("no_dshs", [True, False])
+    # args.no_do = trial.suggest_categorical("no_do", [True, False])
+    # args.no_ds = trial.suggest_categorical("no_ds", [True, False])
+    # args.no_dx = trial.suggest_categorical("no_dx", [True, False])
+    # args.no_dshs = trial.suggest_categorical("no_dshs", [True, False])
 
     args.net_width = trial.suggest_categorical("net_width", [64, 128, 256, 512])
     args.defor_depth = trial.suggest_categorical("defor_depth", [1, 2, 4, 8, 16, 64])
@@ -89,6 +89,9 @@ def all_params_obj(trial):
     args.opacity_reset_interval = trial.suggest_float('opacity_reset_interval', 500, 5000)
     
     psnr_test_list_coarse, psnr_test_list_fine = training(model_params.extract(args), model_hidden_params.extract(args), opt_params.extract(args), pipeline_params.extract(args), args.test_iterations, args.save_iterations, args.checkpoint_iterations, args.start_checkpoint, args.debug_from, args.expname)
+    gc.collect()
+    torch.cuda.empty_cache()
+
     return mean(psnr_test_list_fine[-5:]) # mean of the last five items (iteration results)
 
 def deformation_obj(trial):
@@ -207,5 +210,3 @@ if __name__ == "__main__":
             json.dump(summary, outfile)
     except Exception as e:
         print(f"Json Has Not Written Properly Due to {e}")
-
-    
